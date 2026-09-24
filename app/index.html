@@ -165,6 +165,22 @@ table.libres td,table.libres th{text-align:center;padding:6px 4px}
 table.libres input{width:20px;height:20px;accent-color:var(--accent)}
 details.week{border-top:1px solid var(--line);padding-top:8px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.mk{font-size:.8rem;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.mbar{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--surface-2);min-width:60px}
+.mbar i{display:block;height:100%}
+.mh,.leyenda .mh{background:var(--s-fruta)} .mp,.leyenda .mp{background:var(--s-carne)} .mg,.leyenda .mg{background:var(--s-pesca)}
+.nutri{border-top:1px dashed var(--line);padding:8px 14px;display:flex;flex-direction:column;gap:5px}
+.nrow{display:grid;grid-template-columns:minmax(52px,auto) 1fr auto;gap:4px 10px;align-items:center;font-size:.82rem}
+.nrow .nname{font-weight:700;color:var(--ink-2)}
+.nrow .nk{font-weight:700;text-align:right}
+.nrow .nm{grid-column:2 / 4;color:var(--ink-2);font-size:.76rem;margin-top:-2px}
+@media (min-width:620px){.nrow{grid-template-columns:90px 1fr 80px 190px}.nrow .nm{grid-column:auto;margin:0;text-align:right}}
+.nweek-row{display:flex;flex-direction:column;gap:6px;padding-top:10px;border-top:1px solid var(--line)}
+.nweek .mbar{height:12px;border-radius:6px}
+.leyenda{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.leyenda i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.switch{display:inline-flex;gap:6px;align-items:center}
+.switch input{accent-color:var(--accent);width:18px;height:18px}
 .pantry-item{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
 .progress{display:flex;flex-direction:column;gap:6px}
 .progress li{list-style:none}
@@ -419,6 +435,19 @@ function semanaActual() {
   return s ? Object.assign({ id: s.id }, s.data) : null;
 }
 EJEMPLO.gastos = {}; EJEMPLO.batchHecho = [];
+EJEMPLO.nutri = { dias: [
+  [[430,22,28,24], null, [480,20,40,24], [520,55,30,18], [330,52,11,8], [290,32,12,12]],
+  [[520,48,30,18], null, [420,12,24,30], [470,38,20,26], [310,40,12,11], [220,28,8,7]],
+  [[560,18,48,30], null, [520,24,34,30], [480,50,24,18], [300,48,10,7], [330,40,14,12]],
+  [[540,40,38,22], null, [560,20,38,34], [590,60,30,24], [340,30,10,20], [260,38,8,8]],
+  [[510,34,40,22], null, [620,58,28,30], [560,64,22,22], [300,48,10,7], [300,32,7,16]],
+  [null, null, [440,10,32,28], [460,38,26,22], [350,55,11,9], [240,34,8,7]],
+  [[520,20,44,28], [480,54,30,14], [380,22,20,22], [450,50,18,18], [360,40,16,15], [210,28,8,7]]
+].map(([ca, cn, ea, en, dn, mn]) => {
+  const m = a => a ? { kcal: a[0], h: a[1], p: a[2], g: a[3] } : null;
+  const par = (ad, ni) => Object.fromEntries([["Adulto", m(ad)], ["Niño", m(ni)]].filter(x => x[1]));
+  return { comida: par(ca, cn), cena: par(ea, en), desayuno: par(null, dn), merienda: par(null, mn) };
+}) };
 const EJ_ITEMS = EJEMPLO.compra.map((it, i) => Object.assign({ id: "e" + i, estado: "pendiente", orden: i }, it));
 function itemsActuales() {
   if (S.semanaId === "ejemplo") return EJ_ITEMS;
@@ -578,6 +607,19 @@ Responde SOLO con JSON válido:
  "diario":[{"dia":"Lunes","tarea":"...","min":n}]}`;
 }
 
+function promptNutricion(menu) {
+  return `Eres dietista. Estima el valor nutricional APROXIMADO de cada toma de este menú semanal, para la ración que se sirve a cada persona (según su edad, su dieta y cómo se le sirve en "servir"; desayuno y merienda según lo indicado para cada id).
+
+PERSONAS:
+${S.config.personas.map(p => `- [id: ${p.id}] ${p.nombre}, ${edadTxt(p)}. Dieta: ${p.dieta || "equilibrada"}`).join("\n")}
+
+MENÚ (JSON):
+${JSON.stringify(menu.dias)}
+
+Para cada día (en el mismo orden) y cada toma, da por persona: kcal, h (hidratos en g), p (proteínas en g), g (grasas en g), redondeados. Incluye solo a las personas que hacen esa toma en casa (las que aparecen en "servir" o en desayuno/merienda). Omite las comidas libres y las nulas.
+Responde SOLO con JSON: {"dias":[{"desayuno":{"<id>":{"kcal":0,"h":0,"p":0,"g":0}},"comida":{...},"merienda":{...},"cena":{...}} ×7]}`;
+}
+
 function promptCambio(menu, diaIdx, slot, motivo) {
   const d = menu.dias[diaIdx];
   return `Eres un planificador de menús familiares.
@@ -588,7 +630,8 @@ Menú actual de la semana (JSON): ${JSON.stringify(menu.dias.map(x => ({ dia: x.
 
 Cambia la ${slot} del ${d.dia} (ahora: "${d[slot].plato}") por otra opción que encaje con el resto de la semana, de temporada, sin repetir proteína con el día anterior o siguiente.${motivo ? " Motivo o preferencia: " + motivo : ""}
 En "servir" pon una entrada para cada una de estas personas (por id): ${JSON.stringify(Object.keys(d[slot]?.servir || {}))}.
-Responde SOLO con JSON: {"libre":false,"plato":"...","servir":{"<id>":"cómo se le sirve"},"origen":"batch|dia","nota":"..."}`;
+Incluye también una estimación aproximada de la ración de cada persona en "macros".
+Responde SOLO con JSON: {"libre":false,"plato":"...","servir":{"<id>":"cómo se le sirve"},"origen":"batch|dia","nota":"...","macros":{"<id>":{"kcal":0,"h":0,"p":0,"g":0}}}`;
 }
 
 /* =========================================================
@@ -612,7 +655,7 @@ async function generarSemana(form) {
   await store.set("semanas/" + id, { lunes, estado: "generando", generandoDesde: new Date().toISOString() });
   const previos = S.semanas.filter(s => s.id !== id).sort((a, b) => b.id.localeCompare(a.id)).slice(0, 2)
     .flatMap(s => (s.data.menu?.dias || []).flatMap(d => [d.comida?.plato, d.cena?.plato])).filter(p => p && p !== "Comida libre");
-  S.gen = { paso: 0, pasos: ["Menú de la semana", "Lista de la compra por tiendas", "Plan del domingo"], error: null };
+  S.gen = { paso: 0, pasos: ["Menú de la semana", "Nutrición aproximada", "Lista de la compra por tiendas", "Plan del " + S.config.diaBatch.toLowerCase()], error: null };
   S.error = null; render();
   if (form.comedorSemana) { S.config.comedorRef = { lunes, n: form.comedorSemana }; saveConfig(); }
   try {
@@ -621,8 +664,11 @@ async function generarSemana(form) {
     await store.set("semanas/" + id, { lunes, menu, comedor: form.comedor || "", comedorSemana: form.comedorSemana, comedorDias: form.comedorDias || [], peticiones: form.peticiones || "", creada: new Date().toISOString(), estado: "lista", bloqueada: true, gastos: {}, batchHecho: [], compraDesfasada: false });
     S.semanaId = id; S.gen.paso = 1; render();
 
-    await generarCompra(id, menu);
+    await calcularNutricion(id, menu).catch(() => {});   // si falla, la semana sigue adelante
     S.gen.paso = 2; render();
+
+    await generarCompra(id, menu);
+    S.gen.paso = 3; render();
 
     const batch = await sample.json(promptBatch(menu), { modelTier: "complex" });
     await store.update("semanas/" + id, { batch });
@@ -666,14 +712,26 @@ async function regenerarCompra(confirmado) {
   const s = semanaActual(); if (!s || s.ejemplo || !sample) return;
   if (!confirmado && S.items.some(i => i.estado !== "pendiente")) { S.confirm = "compra"; render(true); return; }
   S.confirm = null;
-  S.gen = { paso: 1, pasos: ["Menú de la semana", "Lista de la compra por tiendas", "Plan del domingo"], error: null, soloCompra: true }; render();
+  S.gen = { paso: 2, pasos: ["Menú de la semana", "Nutrición aproximada", "Lista de la compra por tiendas", "Plan del " + S.config.diaBatch.toLowerCase()], error: null, soloCompra: true }; render();
   try {
     await generarCompra(s.id, s.menu);
-    S.gen.paso = 2; render();
+    S.gen.paso = 3; render();
     const batch = await sample.json(promptBatch(s.menu), { modelTier: "complex" });
     await store.update("semanas/" + s.id, { batch, batchHecho: [] });
     S.gen = null; render();
   } catch (e) { S.gen.error = mensajeIA(e); render(); }
+}
+
+async function calcularNutricion(id, menu) {
+  const r = await sample.json(promptNutricion(menu), { modelTier: "default" });
+  if (!Array.isArray(r?.dias) || r.dias.length !== 7) throw { message: "La nutrición llegó incompleta. Vuelve a intentarlo." };
+  await store.update("semanas/" + id, { nutri: { dias: r.dias } });
+}
+async function botonNutricion() {
+  const s = semanaActual(); if (!s || s.ejemplo || !sample) return;
+  S.calcNutri = true; render(true);
+  try { await calcularNutricion(s.id, s.menu); } catch (e) { S.error = mensajeIA(e); }
+  S.calcNutri = false; render(true);
 }
 
 async function cambiarPlato(diaIdx, slot, motivo) {
@@ -683,8 +741,11 @@ async function cambiarPlato(diaIdx, slot, motivo) {
     const nuevo = await sample.json(promptCambio(s.menu, diaIdx, slot, motivo), { modelTier: "default", cache: false });
     if (!nuevo?.plato) throw { message: "No llegó un plato válido." };
     const menu = structuredClone(s.menu);
+    const macros = nuevo.macros; delete nuevo.macros;
     menu.dias[diaIdx][slot] = nuevo;
-    await store.update("semanas/" + s.id, { menu, compraDesfasada: true });
+    const upd = { menu, compraDesfasada: true };
+    if (s.nutri?.dias?.[diaIdx]) { const nutri = structuredClone(s.nutri); nutri.dias[diaIdx][slot] = macros || {}; upd.nutri = nutri; }
+    await store.update("semanas/" + s.id, upd);
   } catch (e) { S.error = mensajeIA(e); }
   S.swapping = null; render();
 }
@@ -816,15 +877,61 @@ function renderSemana() {
   </div>`;
   if (nut.comentario) h += `<p class="muted">${esc(nut.comentario)}</p>`;
   const t = s.menu?.temporada;
+  h += panelNutriSemana(s);
   if (t) h += `<div class="stack" style="gap:6px"><span class="label">De temporada en ${esc(mesDe(s.lunes))}</span><div class="season">${[...(t.verduras||[]),...(t.frutas||[]),...(t.pescados||[])].map(x => `<span class="chip">${esc(x)}</span>`).join("")}</div></div>`;
 
   (s.menu?.dias || []).forEach((d, i) => {
     h += `<article class="day"><div class="day-h"><span class="d">${esc(d.dia)}</span><span class="small muted">${esc(fechaCorta(s.lunes, i))}</span></div>
-      <div class="meals">${renderMeal(d.comida, "Comida", i, "comida", s)}${renderMeal(d.cena, "Cena", i, "cena", s)}</div>
-      ${lineaExtras(s, d, i)}</article>`;
+      <div class="meals">${renderMeal(d.comida, "Comida", i, "comida", s) || '<div class="meal"></div>'}${renderMeal(d.cena, "Cena", i, "cena", s) || '<div class="meal"></div>'}</div>
+      ${lineaExtras(s, d, i)}${pieNutri(s, i)}</article>`;
   });
   h += panelRehacer(s);
   return h;
+}
+/* Nutrición: barra de hidratos / proteínas / grasas en proporción a las kcal que aporta cada uno */
+function sumaMacros(list) {
+  return list.filter(Boolean).reduce((a, m) => ({ kcal: a.kcal + (+m.kcal || 0), h: a.h + (+m.h || 0), p: a.p + (+m.p || 0), g: a.g + (+m.g || 0) }), { kcal: 0, h: 0, p: 0, g: 0 });
+}
+function barraMacros(m) {
+  const h = m.h * 4, p = m.p * 4, g = m.g * 9, t = h + p + g || 1;
+  const pc = x => Math.round(x / t * 100);
+  return `<span class="mbar" role="img" aria-label="Hidratos ${pc(h)} %, proteínas ${pc(p)} %, grasas ${pc(g)} % de las kcal"><i class="mh" style="width:${h / t * 100}%"></i><i class="mp" style="width:${p / t * 100}%"></i><i class="mg" style="width:${g / t * 100}%"></i></span>`;
+}
+const r0 = n => Math.round(n);
+function macrosDia(s, i) {   // {pid: suma del día}
+  const d = s.nutri?.dias?.[i]; if (!d) return {};
+  const out = {};
+  SLOTS.forEach(sl => Object.entries(d[sl] || {}).forEach(([pid, m]) => { (out[pid] = out[pid] || []).push(m); }));
+  return Object.fromEntries(Object.entries(out).map(([pid, l]) => [pid, sumaMacros(l)]));
+}
+function lineaKcal(s, i, slot) {
+  if (!verNutri() || !s.nutri) return "";
+  const d = s.nutri.dias?.[i]?.[slot]; if (!d || !Object.keys(d).length) return "";
+  return `<div class="mk">${Object.entries(d).map(([pid, m]) => `${esc(nombreDe(pid))} ${r0(m.kcal)} kcal`).join(" · ")}</div>`;
+}
+function pieNutri(s, i) {
+  if (!verNutri() || !s.nutri) return "";
+  const dia = macrosDia(s, i); const ids = Object.keys(dia); if (!ids.length) return "";
+  return `<div class="nutri">${ids.map(pid => { const m = dia[pid]; return `<div class="nrow"><span class="nname">${esc(nombreDe(pid))}</span>${barraMacros(m)}<span class="num nk">${r0(m.kcal)} kcal</span><span class="num nm">H ${r0(m.h)} · P ${r0(m.p)} · G ${r0(m.g)} g</span></div>`; }).join("")}</div>`;
+}
+function verNutri() { return S.verNutri !== false; }
+function panelNutriSemana(s) {
+  const toggle = `<label class="small switch"><input type="checkbox" id="ver-nutri" ${verNutri() ? "checked" : ""}> Mostrar nutrición</label>`;
+  if (!s.nutri) {
+    if (s.ejemplo || !sample) return "";
+    return `<div class="row between small muted"><span>Esta semana no tiene la nutrición calculada.</span><button class="btn sm" data-act="calc-nutri" ${S.calcNutri ? "disabled" : ""}>${S.calcNutri ? '<span class="spin">◌</span> Calculando…' : "Calcular nutrición"}</button></div>`;
+  }
+  if (!verNutri()) return `<div class="row">${toggle}</div>`;
+  const porPersona = {};
+  (s.menu?.dias || []).forEach((_, i) => Object.entries(macrosDia(s, i)).forEach(([pid, m]) => { (porPersona[pid] = porPersona[pid] || []).push(m); }));
+  const ids = Object.keys(porPersona);
+  return `<div class="panel stack nweek"><div class="row between"><h3>Nutrición de la semana</h3>${toggle}</div>
+    <div class="leyenda small muted"><span><i class="mh"></i>Hidratos</span><span><i class="mp"></i>Proteínas</span><span><i class="mg"></i>Grasas</span><span>· solo lo que se come en casa, aproximado</span></div>
+    ${ids.map(pid => { const l = porPersona[pid], t = sumaMacros(l), n = l.length, kc = t.h * 4 + t.p * 4 + t.g * 9 || 1;
+      return `<div class="nweek-row"><div class="row between"><b>${esc(nombreDe(pid))}</b><span class="num small">${r0(t.kcal).toLocaleString("es-ES")} kcal en la semana · <b>${r0(t.kcal / n).toLocaleString("es-ES")}</b> al día</span></div>
+        ${barraMacros(t)}
+        <div class="num small muted">Hidratos ${r0(t.h)} g (${r0(t.h * 4 / kc * 100)} %) · Proteínas ${r0(t.p)} g (${r0(t.p * 4 / kc * 100)} %) · Grasas ${r0(t.g)} g (${r0(t.g * 9 / kc * 100)} %) · media diaria H ${r0(t.h / n)} · P ${r0(t.p / n)} · G ${r0(t.g / n)} g</div></div>`; }).join("")}
+  </div>`;
 }
 function lineaExtras(s, d, i) {
   const x = [];
@@ -858,6 +965,7 @@ function renderMeal(m, titulo, i, slot, s) {
     <div class="plato">${esc(m.plato)}</div>
     <div class="who">${m.servir ? Object.entries(m.servir).map(([pid, t]) => `<b>${esc(nombreDe(pid))}</b><span>${esc(t)}</span>`).join("") : `${m.adultos ? `<b>Adultos</b><span>${esc(m.adultos)}</span>` : ""}${m.nino ? `<b>Niño</b><span>${esc(m.nino)}</span>` : ""}`}</div>
     ${m.nota ? `<span class="small muted">${esc(m.nota)}</span>` : ""}
+    ${lineaKcal(s, i, slot)}
     ${s.ejemplo || !sample ? "" : `<div><button class="btn ghost sm" data-act="swap" data-i="${i}" data-slot="${slot}" ${busy || S.swapping ? "disabled" : ""}>${busy ? '<span class="spin">◌</span> Buscando otro…' : "Cambiar plato"}</button></div>`}
   </div>`;
 }
@@ -1166,6 +1274,7 @@ document.addEventListener("click", async e => {
   if (act === "ver-carrito") { S.verCarrito = !S.verCarrito; render(true); if (S.verCarrito) window.scrollTo({ top: 0, behavior: "smooth" }); }
   if (act === "terminar") { S.verCarrito = false; await setEstado(itemsActuales().filter(i => i.estado === "carrito").map(i => i.id), "comprado"); }
   if (act === "quitar-desp") await store.del("despensa/" + b.dataset.id);
+  if (act === "calc-nutri") botonNutricion();
   if (act === "ir-ajustes") { S.tab = "ajustes"; render(true); window.scrollTo(0, 0); }
   if (["add-persona", "quitar-persona", "add-tienda", "quitar-tienda", "add-semana", "quitar-semana", "vaciar-comedor"].includes(act)) {
     const d = leerAjustes(), k = Number(b.dataset.k);
@@ -1190,6 +1299,7 @@ document.addEventListener("click", async e => {
 document.addEventListener("change", async e => {
   const t = e.target; const s = semanaActual();
   if (t.id === "sel-semana") { selectSemana(t.value); return; }
+  if (t.id === "ver-nutri") { S.verNutri = t.checked; try { localStorage.setItem("cd-nutri", t.checked ? "1" : "0"); } catch (x) {} render(true); return; }
   if (t.id === "co-file" && t.files?.[0]) { importarComedor(t.files[0]); return; }
   if (t.id === "g-lunes" && t.value) { const sel = document.getElementById("g-comedor"); if (sel && sel.value !== "0") sel.value = String(semanaComedor(t.value)); }
   if (t.id === "g-lunes" || t.id === "g-comedor") {
@@ -1264,7 +1374,7 @@ function selectSemana(id) {
    Arranque
    ========================================================= */
 function start() {
-  try { const t = localStorage.getItem("cd-tab"); if (t) S.tab = t; } catch (e) {}
+  try { const t = localStorage.getItem("cd-tab"); if (t) S.tab = t; if (localStorage.getItem("cd-nutri") === "0") S.verNutri = false; } catch (e) {}
   store.watchDoc("config/hogar", c => {
     S.config = normalizar(c);
     render();
