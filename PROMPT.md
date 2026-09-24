@@ -59,7 +59,8 @@ Horno, freidora de aire, sartenes y ollas medianas. **Sin olla exprés** y sin o
 | **Mercadona** | Todo lo demás, incluida la verdura y esos cuatro productos. Agrupado por secciones |
 
 - Descontar lo que ya hay en la **despensa** (la app lleva el inventario).
-- Precio estimado por artículo y total por tienda.
+- **Cantidades exactas:** el total de la semana sumando todos los platos, en **g, kg, ml o l** (solo "ud" para lo que se cuenta: huevos, aguacates…). Fruta, verdura, carne y pescado siempre en peso. Indicar además el envase o cómo pedirlo ("2 botes de 400 g", "lomos sin espinas").
+- **Precios:** referencia **Mercadona** para todo, también para carne, pescado y fruta aunque se compren en otra tienda. Precio = precio €/kg (o €/l, €/ud) de Mercadona × cantidad. La app usa el catálogo real de Mercadona Gijón (`scripts/mercadona_precios.py`) cuando está cargado; si no, precio estimado.
 - **Presupuesto:** hoy se gastan 200–250 €/semana; objetivo inicial **{presupuesto} €/semana**. Proponer ideas de ahorro concretas.
 
 ## Salidas

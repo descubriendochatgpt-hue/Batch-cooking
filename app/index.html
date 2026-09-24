@@ -113,6 +113,8 @@ section[hidden]{display:none}
 .item.home .n{color:var(--ink-2)}
 .item .r{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
 .item .price{font-variant-numeric:tabular-nums}
+.item .ref{font-size:.75rem}
+.qty{color:var(--ink);font-weight:700}
 .as-btn{border:0;background:none;padding:0;text-align:left;color:inherit;font:inherit}
 .item .itemtap{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:center;grid-column:1 / 3;min-height:44px}
 .item .itemtap .n,.cart .n{display:block}
@@ -268,31 +270,31 @@ const EJEMPLO = {
     nutricion: { pescado:5, legumbre:2, huevo:3, carneRoja:1, comentario:"Semana ligera en hidratos para los adultos y con su ración para el niño en cada cena." }
   },
   compra: [
-    { nombre:"Muslos y contramuslos de pollo", cantidad:"1,2", unidad:"kg", tienda:"Carnicería", seccion:"Aves", precio:7.8, para:"Pollo con setas, ensalada de quinoa" },
-    { nombre:"Carne picada de ternera", cantidad:"500", unidad:"g", tienda:"Carnicería", seccion:"Vacuno", precio:6.5, para:"Lasaña" },
-    { nombre:"Merluza en lomos sin espinas", cantidad:"700", unidad:"g", tienda:"Pescadería", seccion:"Pescado blanco", precio:12.6, para:"Merluza al horno" },
-    { nombre:"Bocartes limpios", cantidad:"500", unidad:"g", tienda:"Pescadería", seccion:"Pescado azul", precio:5.0, para:"Cena miércoles" },
-    { nombre:"Bonito del norte en rodajas", cantidad:"600", unidad:"g", tienda:"Pescadería", seccion:"Pescado azul", precio:10.8, para:"Bonito con tomate" },
-    { nombre:"Manzana asturiana", cantidad:"2", unidad:"kg", tienda:"Frutería", seccion:"Fruta", precio:4.4, para:"Meriendas" },
-    { nombre:"Peras conferencia", cantidad:"1", unidad:"kg", tienda:"Frutería", seccion:"Fruta", precio:2.4, para:"Meriendas" },
-    { nombre:"Uvas", cantidad:"750", unidad:"g", tienda:"Frutería", seccion:"Fruta", precio:2.6, para:"Meriendas" },
-    { nombre:"Plátanos", cantidad:"1", unidad:"kg", tienda:"Frutería", seccion:"Fruta", precio:2.2, para:"Desayunos" },
-    { nombre:"Granada", cantidad:"2", unidad:"ud", tienda:"Frutería", seccion:"Fruta", precio:2.0, para:"Postre" },
-    { nombre:"Calabaza troceada", cantidad:"1", unidad:"kg", tienda:"Mercadona", seccion:"Verdura", precio:2.3, para:"Crema" },
-    { nombre:"Puerros", cantidad:"1", unidad:"bandeja", tienda:"Mercadona", seccion:"Verdura", precio:1.5, para:"Crema" },
-    { nombre:"Coliflor", cantidad:"1", unidad:"ud", tienda:"Mercadona", seccion:"Verdura", precio:1.8, para:"Asada y crema" },
-    { nombre:"Brócoli", cantidad:"2", unidad:"ud", tienda:"Mercadona", seccion:"Verdura", precio:2.4, para:"Guarnición" },
-    { nombre:"Setas variadas", cantidad:"2", unidad:"bandejas", tienda:"Mercadona", seccion:"Verdura", precio:4.0, para:"Pollo y revuelto" },
-    { nombre:"Tomates cherry", cantidad:"1", unidad:"tarrina", tienda:"Mercadona", seccion:"Verdura", precio:1.7, para:"Ensaladas" },
-    { nombre:"Aguacates", cantidad:"1", unidad:"malla", tienda:"Mercadona", seccion:"Verdura", precio:2.9, para:"Desayunos y ensaladas" },
-    { nombre:"Huevos frescos L", cantidad:"2", unidad:"docenas", tienda:"Mercadona", seccion:"Huevos", precio:5.2, para:"Tortilla, revuelto, crema" },
-    { nombre:"Lentejas cocidas (bote cristal)", cantidad:"2", unidad:"botes", tienda:"Mercadona", seccion:"Despensa", precio:1.9, para:"Lentejas" },
-    { nombre:"Garbanzos cocidos (bote cristal)", cantidad:"1", unidad:"bote", tienda:"Mercadona", seccion:"Despensa", precio:1.0, para:"Garbanzos con espinacas" },
-    { nombre:"Pasta de legumbres", cantidad:"1", unidad:"paquete", tienda:"Mercadona", seccion:"Despensa", precio:1.6, para:"Adultos" },
-    { nombre:"Pan de centeno integral", cantidad:"1", unidad:"paquete", tienda:"Mercadona", seccion:"Panadería", precio:1.9, para:"Desayunos" },
-    { nombre:"Yogur natural", cantidad:"2", unidad:"packs de 6", tienda:"Mercadona", seccion:"Lácteos", precio:2.4, para:"Meriendas" },
-    { nombre:"Leche entera", cantidad:"6", unidad:"l", tienda:"Mercadona", seccion:"Lácteos", precio:5.6, para:"Desayunos" },
-    { nombre:"Arándanos", cantidad:"1", unidad:"tarrina", tienda:"Mercadona", seccion:"Fruta", precio:2.3, para:"Desayunos" }
+    { nombre:"Muslos y contramuslos de pollo", cantidad:"1,2", unidad:"kg", formato:"deshuesados y sin piel", tienda:"Carnicería", seccion:"Aves", precio:7.8, para:"Pollo con setas, ensalada de quinoa" },
+    { nombre:"Carne picada de ternera", cantidad:"500", unidad:"g", formato:"picada una vez, magra", tienda:"Carnicería", seccion:"Vacuno", precio:6.5, para:"Lasaña" },
+    { nombre:"Merluza en lomos sin espinas", cantidad:"700", unidad:"g", formato:"lomos limpios y sin espinas", tienda:"Pescadería", seccion:"Pescado blanco", precio:12.6, para:"Merluza al horno" },
+    { nombre:"Bocartes limpios", cantidad:"500", unidad:"g", formato:"limpios, sin cabeza ni espina", tienda:"Pescadería", seccion:"Pescado azul", precio:5.0, para:"Cena miércoles" },
+    { nombre:"Bonito del norte en rodajas", cantidad:"600", unidad:"g", formato:"en rodajas de 2 cm", tienda:"Pescadería", seccion:"Pescado azul", precio:10.8, para:"Bonito con tomate" },
+    { nombre:"Manzana asturiana", cantidad:"2", unidad:"kg", formato:"", tienda:"Frutería", seccion:"Fruta", precio:4.4, para:"Meriendas" },
+    { nombre:"Peras conferencia", cantidad:"1", unidad:"kg", formato:"", tienda:"Frutería", seccion:"Fruta", precio:2.4, para:"Meriendas" },
+    { nombre:"Uvas", cantidad:"750", unidad:"g", formato:"", tienda:"Frutería", seccion:"Fruta", precio:2.6, para:"Meriendas" },
+    { nombre:"Plátanos", cantidad:"1", unidad:"kg", formato:"", tienda:"Frutería", seccion:"Fruta", precio:2.2, para:"Desayunos" },
+    { nombre:"Granada", cantidad:"700", unidad:"g", formato:"2 piezas", tienda:"Frutería", seccion:"Fruta", precio:2.0, para:"Postre" },
+    { nombre:"Calabaza troceada", cantidad:"1", unidad:"kg", formato:"2 bandejas de 500 g", tienda:"Mercadona", seccion:"Verdura", precio:2.3, para:"Crema" },
+    { nombre:"Puerros", cantidad:"500", unidad:"g", formato:"bandeja de 3", tienda:"Mercadona", seccion:"Verdura", precio:1.5, para:"Crema" },
+    { nombre:"Coliflor", cantidad:"1,2", unidad:"kg", formato:"1 pieza", tienda:"Mercadona", seccion:"Verdura", precio:1.8, para:"Asada y crema" },
+    { nombre:"Brócoli", cantidad:"800", unidad:"g", formato:"2 piezas", tienda:"Mercadona", seccion:"Verdura", precio:2.4, para:"Guarnición" },
+    { nombre:"Setas variadas", cantidad:"500", unidad:"g", formato:"2 bandejas de 250 g", tienda:"Mercadona", seccion:"Verdura", precio:4.0, para:"Pollo y revuelto" },
+    { nombre:"Tomates cherry", cantidad:"250", unidad:"g", formato:"1 tarrina", tienda:"Mercadona", seccion:"Verdura", precio:1.7, para:"Ensaladas" },
+    { nombre:"Aguacates", cantidad:"4", unidad:"ud", formato:"malla ≈ 750 g", tienda:"Mercadona", seccion:"Verdura", precio:2.9, para:"Desayunos y ensaladas" },
+    { nombre:"Huevos frescos L", cantidad:"24", unidad:"ud", formato:"2 docenas", tienda:"Mercadona", seccion:"Huevos", precio:5.2, para:"Tortilla, revuelto, crema" },
+    { nombre:"Lentejas cocidas (bote cristal)", cantidad:"800", unidad:"g", formato:"2 botes de 400 g", tienda:"Mercadona", seccion:"Despensa", precio:1.9, para:"Lentejas" },
+    { nombre:"Garbanzos cocidos (bote cristal)", cantidad:"400", unidad:"g", formato:"1 bote", tienda:"Mercadona", seccion:"Despensa", precio:1.0, para:"Garbanzos con espinacas" },
+    { nombre:"Pasta de legumbres", cantidad:"250", unidad:"g", formato:"1 paquete", tienda:"Mercadona", seccion:"Despensa", precio:1.6, para:"Adultos" },
+    { nombre:"Pan de centeno integral", cantidad:"500", unidad:"g", formato:"1 paquete", tienda:"Mercadona", seccion:"Panadería", precio:1.9, para:"Desayunos" },
+    { nombre:"Yogur natural", cantidad:"12", unidad:"ud", formato:"2 packs de 6 × 125 g", tienda:"Mercadona", seccion:"Lácteos", precio:2.4, para:"Meriendas" },
+    { nombre:"Leche entera", cantidad:"6", unidad:"l", formato:"6 bricks de 1 l", tienda:"Mercadona", seccion:"Lácteos", precio:5.6, para:"Desayunos" },
+    { nombre:"Arándanos", cantidad:"250", unidad:"g", formato:"1 tarrina", tienda:"Mercadona", seccion:"Fruta", precio:2.3, para:"Desayunos" }
   ],
   batch: {
     duracionMin: 170,
@@ -413,6 +415,11 @@ function fechaCorta(iso, offset = 0) {
   return d.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
 }
 function mesDe(iso) { return new Date(iso + "T12:00:00").toLocaleDateString("es-ES", { month: "long" }); }
+function fmtCantidad(c) {
+  const n = typeof c === "number" ? c : parseFloat(String(c ?? "").replace(",", "."));
+  if (isNaN(n)) return String(c ?? "");
+  return n.toLocaleString("es-ES", { maximumFractionDigits: 2 });
+}
 function showError(msg) { S.error = msg; render(); }
 
 /* =========================================================
@@ -457,7 +464,30 @@ Responde SOLO con JSON válido, sin texto extra, con esta forma:
 Para la comida libre usa {"libre":true,"plato":"Comida libre","adultos":"","nino":"","origen":"libre","nota":"Comer fuera"}.`;
 }
 
+function catalogoPrecios(menu) {
+  const c = S.precios;
+  if (!c || !Array.isArray(c.items) || !c.items.length) return "";
+  // Solo los productos que tienen que ver con el menú de la semana, para que quepa en la petición
+  const norm = t => String(t).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const raiz = w => w.replace(/(es|s)$/, "");
+  const claves = new Set(norm(JSON.stringify(menu.dias)).match(/[a-zñ]{4,}/g)?.map(raiz) || []);
+  ["huevo","leche","yogur","pan","aceite","fruta","platano","manzana","queso","avena"].forEach(k => claves.add(k));
+  const puntuados = c.items.map(x => {
+    const palabras = norm(x[0]).match(/[a-zñ]{4,}/g) || [];
+    const score = palabras.reduce((a, w) => a + (claves.has(raiz(w)) ? 1 : 0), 0);
+    return { x, score };
+  }).filter(p => p.score > 0).sort((a, b) => b.score - a.score);
+  let txt = "";
+  for (const { x } of puntuados) {
+    const l = `${x[0]}|${x[1]}|${x[2]}|${x[3]}/${x[4]}\n`;
+    if (txt.length + l.length > 36000) break;
+    txt += l;
+  }
+  return txt;
+}
+
 function promptCompra(menu) {
+  const cat = catalogoPrecios(menu);
   return `Eres un experto en hacer la compra para una familia en Gijón.
 
 ${perfilFamilia()}
@@ -465,11 +495,22 @@ ${perfilFamilia()}
 MENÚ DE LA SEMANA (JSON):
 ${JSON.stringify(menu.dias)}
 
-Haz la lista de la compra completa para cocinar este menú (incluidos desayunos y meriendas del niño), para 2 adultos y un niño de 5 años. Descuenta lo que hay en la despensa. No incluyas nada para la comida libre ni para la comida del niño en el comedor. Cantidades exactas y realistas (en carnicería y pescadería di peso y cómo pedirlo: "fileteado", "limpio", "en rodajas"...). En Mercadona usa nombres y formatos reales y agrupa por sección (Verdura, Fruta, Lácteos, Huevos, Despensa, Panadería, Congelados, Charcutería, Limpieza...). Precio estimado en euros de cada línea (total de esa línea, precios de Asturias en 2026).
-Asigna cada artículo a su tienda según las reglas de TIENDAS.
+Haz la lista de la compra completa para cocinar este menú (incluidos desayunos y meriendas del niño), para 2 adultos y un niño de 5 años. Descuenta lo que hay en la despensa. No incluyas nada para la comida libre ni para la comida del niño en el comedor. Asigna cada artículo a su tienda según las reglas de TIENDAS. En Mercadona agrupa por sección (Verdura, Fruta, Lácteos, Huevos, Despensa, Panadería, Congelados, Charcutería, Limpieza...).
+
+CANTIDADES EXACTAS (obligatorio):
+- Suma lo que necesitan TODOS los platos de la semana que usan ese ingrediente y da el total exacto en peso o volumen: "cantidad" es un NÚMERO y "unidad" es "g", "kg", "ml", "l" o "ud" (solo "ud" para cosas que se cuentan: huevos, aguacates, limones, barras de pan).
+- Fruta, verdura, carne y pescado SIEMPRE en g o kg (p. ej. 1.2 kg de calabaza, 650 g de lomos de merluza, 4 ud de aguacate no; di 4 ud solo si se venden sueltos por unidad y añade el peso aproximado en "formato").
+- Usa g por debajo de 1 kg y kg con decimales a partir de 1 kg.
+- En "formato" di cómo pedirlo o qué envase coger: en carnicería y pescadería cómo cortarlo ("fileteado fino", "limpio y sin espinas", "en rodajas de 2 cm"); en Mercadona el envase real y cuántos ("2 botes de 400 g", "bandeja de 500 g").
+
+PRECIOS:
+- Usa como referencia los precios de MERCADONA para TODO, también para la carne, el pescado y la fruta aunque se compren en carnicería, pescadería o frutería.
+- "precio" = precio de referencia de Mercadona por kg (o por l / ud) × cantidad, en euros con 2 decimales. "precioRef" = ese precio por kg, l o ud, y "refUnidad" = "kg", "l" o "ud".
+${cat ? `- CATÁLOGO DE MERCADONA (Gijón, actualizado ${S.precios.actualizado}). Formato: nombre|envase|precio envase €|precio de referencia €/unidad. Busca el producto más parecido y usa SU precio; pon "fuente":"mercadona" cuando lo saques de aquí y "fuente":"estimado" si no hay nada parecido:
+${cat}` : `- No hay catálogo de Mercadona cargado todavía: estima con los precios de Mercadona que conozcas y pon "fuente":"estimado".`}
 
 Responde SOLO con JSON válido:
-{"items":[{"nombre":"...","cantidad":"...","unidad":"...","tienda":"Carnicería|Pescadería|Frutería|Mercadona","seccion":"...","precio":0.0,"para":"plato(s) en que se usa"}],
+{"items":[{"nombre":"...","cantidad":0,"unidad":"g|kg|ml|l|ud","formato":"...","tienda":"Carnicería|Pescadería|Frutería|Mercadona","seccion":"...","precio":0.0,"precioRef":0.0,"refUnidad":"kg|l|ud","fuente":"mercadona|estimado","para":"plato(s) en que se usa"}],
  "consejos":["2-4 ideas concretas para ahorrar esta semana sin perder calidad"]}`;
 }
 
@@ -540,7 +581,8 @@ async function generarCompra(id, menu) {
   const antiguos = (S.semanaId === id ? S.items : []).map(i => i.id);
   for (const oid of antiguos) await store.del(`semanas/${id}/compra/${oid}`);
   const writes = items.map((it, i) => store.set(`semanas/${id}/compra/${String(i).padStart(3, "0")}-${uid()}`, {
-    nombre: String(it.nombre || ""), cantidad: String(it.cantidad ?? ""), unidad: String(it.unidad || ""),
+    nombre: String(it.nombre || ""), cantidad: fmtCantidad(it.cantidad), unidad: String(it.unidad || ""), formato: String(it.formato || ""),
+    precioRef: Number(it.precioRef) || 0, refUnidad: String(it.refUnidad || ""), fuente: it.fuente === "mercadona" ? "mercadona" : "estimado",
     tienda: SHOPS.some(s => s.id === it.tienda) ? it.tienda : "Mercadona", seccion: String(it.seccion || "Otros"),
     precio: Number(it.precio) || 0, para: String(it.para || ""), estado: "pendiente", orden: i
   }));
@@ -736,6 +778,8 @@ function renderCompra() {
   let h = `<div class="row between"><div><span class="label">Compra del ${esc(S.config.diaCompra.toLowerCase())}</span><h2>${pendientes.length ? pendientes.length + " cosas por comprar" : carrito.length ? "Todo en el carrito" : "Compra terminada"}</h2></div>${selectorSemana()}</div>`;
   if (s.ejemplo) h += `<div class="banner small"><span>Lista de ejemplo para probar: toca los productos para echarlos al carrito. No se guarda.</span></div>`;
   if (s.compraDesfasada) h += `<div class="banner warn"><span>El menú ha cambiado desde que se hizo esta lista.</span><button class="btn sm primary" data-act="regen-compra" ${sample ? "" : "disabled"}>Rehacer lista</button></div>`;
+  const deMerca = items.filter(i => i.fuente === "mercadona").length;
+  h += `<p class="small muted">${S.precios?.items?.length ? `Precios de referencia de Mercadona Gijón, actualizados el ${esc(S.precios.actualizado)}. ${deMerca} de ${items.length} artículos con precio de catálogo (M); el resto, estimado (≈).` : "Precios estimados con referencia Mercadona (≈). Todavía no está cargado el catálogo real de Mercadona."}</p>`;
   h += `<div class="summary">
     <div class="stat"><span class="label">Falta por comprar</span><div class="v num">${eur(suma(pendientes))}</div><div class="meter ${est > pres ? "over" : ""}"><i style="width:${Math.min(100, est / pres * 100)}%"></i></div><span class="small muted">Semana ≈ ${eur(est)} · objetivo ${eur(pres)}</span></div>
     <div class="stat"><span class="label">Gastado de verdad</span><div class="v num">${real ? eur(real) : "–"}</div><span class="small muted">${real ? (real <= pres ? "Dentro del objetivo" : "Te pasas " + eur(real - pres)) : "Apunta el ticket de cada tienda"}</span></div>
@@ -758,8 +802,8 @@ function renderCompra() {
       if (secs.length > 1 || sh.id === "Mercadona") h += `<div class="sec label">${esc(sec)}</div>`;
       pend.filter(i => (i.seccion || "Otros") === sec).forEach(i => {
         h += `<div class="item"><button class="as-btn itemtap" data-act="estado" data-item="${esc(i.id)}" data-to="carrito" aria-label="Al carrito: ${esc(i.nombre)}"><span class="tick" aria-hidden="true"></span>
-          <span><span class="n">${esc(i.nombre)}</span><span class="q">${esc(i.cantidad)} ${esc(i.unidad)}${i.para ? " · " + esc(i.para) : ""}</span></span></button>
-          <div class="r"><span class="price small">${eur(i.precio)}</span><button class="linkbtn" data-act="estado" data-item="${esc(i.id)}" data-to="casa">Ya lo tengo</button></div></div>`;
+          <span><span class="n">${esc(i.nombre)}</span><span class="q"><b class="qty num">${esc(i.cantidad)} ${esc(i.unidad)}</b>${i.formato ? " · " + esc(i.formato) : ""}${i.para ? " · " + esc(i.para) : ""}</span></span></button>
+          <div class="r"><span class="price small" title="${i.fuente === "mercadona" ? "Precio de Mercadona" : "Precio estimado"}">${eur(i.precio)}</span>${i.precioRef ? `<span class="ref small muted num">${i.fuente === "mercadona" ? "M " : "≈ "}${eur(i.precioRef)}/${esc(i.refUnidad)}</span>` : ""}<button class="linkbtn" data-act="estado" data-item="${esc(i.id)}" data-to="casa">Ya lo tengo</button></div></div>`;
       });
     });
     h += `</div>`;
@@ -985,6 +1029,7 @@ function start() {
     render();
   });
   store.watchCol("despensa", rows => { S.despensa = rows; render(); });
+  store.watchDoc("precios/mercadona", d => { S.precios = d; render(); });
   store.watchCol("semanas", rows => {
     S.semanas = rows;
     if (!S.semanaId || (S.semanaId === "ejemplo" && rows.length) || (S.semanaId !== "ejemplo" && !rows.some(r => r.id === S.semanaId))) {
