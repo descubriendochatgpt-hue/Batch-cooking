@@ -158,6 +158,13 @@ textarea{min-height:84px;resize:vertical}
 .chipadd{display:flex;gap:6px}
 .chipadd input{flex:1}
 
+.person legend{padding:0}
+fieldset.person{margin:0;min-width:0}
+.person .row label{display:inline-flex;gap:4px;align-items:center}
+table.libres td,table.libres th{text-align:center;padding:6px 4px}
+table.libres input{width:20px;height:20px;accent-color:var(--accent)}
+details.week{border-top:1px solid var(--line);padding-top:8px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .pantry-item{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
 .progress{display:flex;flex-direction:column;gap:6px}
 .progress li{list-style:none}
@@ -175,14 +182,14 @@ textarea{min-height:84px;resize:vertical}
 <header class="top">
   <div class="brand">
     <h1>La Cocina del Domingo</h1>
-    <span class="where">Gijón · 2 adultos y un peque de 5 años</span>
+    <span class="where" id="subtitulo"></span>
   </div>
   <nav class="tabs" role="tablist">
     <button role="tab" data-tab="semana" aria-selected="true">Menú</button>
     <button role="tab" data-tab="compra" aria-selected="false">Compra</button>
-    <button role="tab" data-tab="batch" aria-selected="false">Domingo</button>
+    <button role="tab" data-tab="batch" aria-selected="false" id="tab-batch-btn">Día de cocina</button>
     <button role="tab" data-tab="despensa" aria-selected="false">Despensa</button>
-    <button role="tab" data-tab="ajustes" aria-selected="false">Gustos y ajustes</button>
+    <button role="tab" data-tab="ajustes" aria-selected="false">Tu casa</button>
   </nav>
 </header>
 
@@ -202,46 +209,73 @@ textarea{min-height:84px;resize:vertical}
    Datos por defecto (ajustes editables desde la app)
    ========================================================= */
 const DEFAULT_CONFIG = {
-  presupuesto: 200,
-  comidaLibre: "Sábado-comida",
+  v: 2,
+  hogar: { nombre: "", ciudad: "", cp: "" },
+  personas: [],                 // {id, nombre, edad, dieta, alergias[], noLeGusta[], mediodiaLV: casa|cole|fuera, comidas:{desayuno,comida,merienda,cena}}
+  libres: [],                   // ["Sábado-comida", ...]
+  presupuesto: 0,
+  gastoActual: "",
   diaCompra: "Viernes",
-  personas: [
-    { id: "padre", nombre: "Padre", alergias: ["piña"], noLeGusta: [] },
-    { id: "madre", nombre: "Madre", alergias: [], noLeGusta: [] },
-    { id: "nino",  nombre: "Niño (5 años)", alergias: [], noLeGusta: [] }
-  ],
-  hidratos: "Adultos: no es keto, comen de todo. Reducen hidratos: pan de centeno integral, pasta integral o de legumbre, arroz integral, en raciones moderadas. Niño: su ración normal de hidratos.",
-  tiendas: "Carnicería: toda la carne.\nPescadería: todo el pescado y marisco.\nFrutería: la fruta, excepto tomates cherry, aguacates, arándanos y frambuesas.\nMercadona: todo lo demás, incluida la verdura y esos cuatro productos.",
-  cocina: "Horno, freidora de aire, sartenes y ollas medianas. Sin olla exprés ni ollas grandes.",
-  notas: "",
-  comedorRef: { lunes: "2026-09-28", n: 1 }  // la semana del 28/09/2026 toca la semana 1 del comedor
+  diaBatch: "Domingo",
+  pctBatch: 80,
+  tiendas: [{ nombre: "Supermercado", que: "Todo" }],
+  superReferencia: "Mercadona",
+  comedor: { nombre: "", semanas: [], ref: null },   // semanas: [[lunes..viernes], ...]
+  cocina: "",
+  notas: ""
 };
-const SHOPS = [
-  { id: "Carnicería", c: "var(--s-carne)" },
-  { id: "Pescadería", c: "var(--s-pesca)" },
-  { id: "Frutería",   c: "var(--s-fruta)" },
-  { id: "Mercadona",  c: "var(--s-merca)" }
-];
+const NUEVA_PERSONA = () => ({ id: uid(), nombre: "", edad: "", dieta: "", alergias: [], noLeGusta: [], mediodiaLV: "casa", comidas: { desayuno: false, comida: true, merienda: false, cena: true } });
+const COLORES = ["var(--s-carne)", "var(--s-pesca)", "var(--s-fruta)", "var(--s-merca)", "var(--accent)", "var(--warn)"];
 const DIAS = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
-/* Menú del comedor escolar 2026/27: rotación de 4 semanas (primer plato, segundo, postre) */
-const COMEDOR = [
-  ["Lentejas con chorizo · Sándwich · Fruta y pan integral","Macarrones gratinados · Pescado con ensalada · Fruta","Ensaladilla rusa · Pollo al horno con guisantes y champiñones · Fruta y pan integral","Arroz integral tres delicias · Pescado con ensalada · Fruta","Sopa · Albóndigas con puré · Yogur"],
-  ["Arroz blanco con huevo · Ensalada mixta · Fruta y pan integral","Puré de calabacín · Filete de pollo con patatas · Fruta","Macarrones integrales con bonito · Pescado con ensalada · Fruta y pan integral","Guiso de carne y patatas · Tortilla de jamón york · Fruta","Sopa de cocido · Cocido completo con repollo · Yogur"],
-  ["Cuscús · Carne guisada · Fruta y pan integral","Pote asturiano · Lomo con guisantes y champiñones · Fruta","Ensalada de pasta integral con bonito · Pescado con ensalada · Fruta y pan integral","Lentejas · Huevos a la mimosa · Fruta","Arroz con huevo y tomate · Pescado con ensalada · Yogur"],
-  ["Arroz con curry · Pollo al ajillo · Fruta y pan integral","Espaguetis carbonara · Pescado con ensalada · Fruta","Puré de verduras · Tortilla de patata y ensalada · Fruta en almíbar y pan integral","Fabada asturiana · Filete ruso · Fruta y pan integral","Sopa de cocido con fideos integrales · Cocido completo con repollo · Yogur"]
-];
+const SLOTS = ["desayuno", "comida", "merienda", "cena"];
+const SLOT_NOMBRE = { desayuno: "Desayuno", comida: "Comida", merienda: "Merienda", cena: "Cena" };
+
+function normalizar(c) {
+  const d = Object.assign(structuredClone(DEFAULT_CONFIG), c || {});
+  d.hogar = Object.assign({}, DEFAULT_CONFIG.hogar, c?.hogar);
+  d.comedor = Object.assign(structuredClone(DEFAULT_CONFIG.comedor), c?.comedor);
+  if (!Array.isArray(d.comedor.semanas)) d.comedor.semanas = [];
+  if (!Array.isArray(d.personas)) d.personas = [];
+  d.personas = d.personas.map(p => Object.assign(NUEVA_PERSONA(), p, { comidas: Object.assign(NUEVA_PERSONA().comidas, p.comidas) }));
+  if (!Array.isArray(d.tiendas) || !d.tiendas.length) d.tiendas = structuredClone(DEFAULT_CONFIG.tiendas);
+  if (!Array.isArray(d.libres)) d.libres = [];
+  return d;
+}
+function shops() {
+  const t = (S.config.tiendas || []).filter(x => x.nombre);
+  return (t.length ? t : DEFAULT_CONFIG.tiendas).map((x, i) => ({ id: x.nombre, que: x.que, c: COLORES[i % COLORES.length] }));
+}
+// Tiendas de ajustes más las que aparezcan en una lista antigua
+function shopsConItems(items) {
+  const base = shops();
+  const extra = [...new Set(items.map(i => i.tienda))].filter(t => t && !base.some(b => b.id === t));
+  return base.concat(extra.map((id, k) => ({ id, c: COLORES[(base.length + k) % COLORES.length] })));
+}
+const nombreDe = id => S.config.personas.find(p => p.id === id)?.nombre || id;
+const colegiales = () => S.config.personas.filter(p => p.mediodiaLV === "cole");
+const hayComedor = () => (S.config.comedor?.semanas || []).length > 0 && colegiales().length > 0;
+function lunesDe(iso) {
+  const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d.toISOString().slice(0, 10);
+}
 function semanaComedor(lunes) {
-  const ref = S.config.comedorRef;
+  const com = S.config.comedor || {}; const n = (com.semanas || []).length;
+  if (!n) return 0;
+  const ref = com.ref;
   if (!ref || !ref.lunes) return 1;
   const w = Math.round((new Date(lunes + "T12:00:00") - new Date(ref.lunes + "T12:00:00")) / 6048e5);
-  return ((ref.n - 1 + w) % 4 + 4) % 4 + 1;
+  return ((ref.n - 1 + w) % n + n) % n + 1;
+}
+function previewComedor(n) {
+  const w = S.config.comedor?.semanas?.[n - 1];
+  if (!w) return "Esta semana comen en casa también de lunes a viernes.";
+  return w.map((x, i) => DIAS[i].slice(0, 2) + ": " + (x.split(" · ")[1] || x)).join(" · ");
 }
 
 /* =========================================================
    Semana de ejemplo (se muestra hasta generar la primera)
    ========================================================= */
 const EJEMPLO = {
-  id: "ejemplo", ejemplo: true, lunes: "2026-09-28", comedorSemana: 1, comedorDias: COMEDOR[0],
+  id: "ejemplo", ejemplo: true, lunes: "2026-09-28", comedorSemana: 1, comedorDias: ["Lentejas con chorizo · Sándwich · Fruta","Macarrones gratinados · Pescado con ensalada · Fruta","Ensaladilla rusa · Pollo al horno con guisantes · Fruta","Arroz integral tres delicias · Pescado con ensalada · Fruta","Sopa · Albóndigas con puré · Yogur"],
   menu: {
     temporada: { verduras:["calabaza","puerro","coliflor","brócoli","pimiento","berenjena","setas","acelga"], frutas:["manzana asturiana","pera","uva","higo","granada","ciruela"], pescados:["bonito del norte (últimas semanas)","merluza","bocarte","chipirón"] },
     dias: [
@@ -426,43 +460,53 @@ function showError(msg) { S.error = msg; render(); }
 /* =========================================================
    Prompts para la IA
    ========================================================= */
+function edadTxt(p) { return p.edad !== "" && p.edad != null ? `${p.edad} años` : "adulto"; }
 function perfilFamilia() {
-  const c = S.config;
-  const gente = c.personas.map(p => `- ${p.nombre}: no puede comer → ${p.alergias.join(", ") || "nada"}; no le gusta → ${p.noLeGusta.join(", ") || "nada en especial"}`).join("\n");
+  const c = S.config, h = c.hogar || {};
+  const gente = c.personas.map(p => {
+    const comidas = SLOTS.filter(sl => p.comidas?.[sl]);
+    const lv = p.mediodiaLV === "cole" ? "de lunes a viernes come en el comedor del colegio" : p.mediodiaLV === "fuera" ? "de lunes a viernes come fuera de casa" : "";
+    return `- [id: ${p.id}] ${p.nombre}, ${edadTxt(p)}. Comidas que hay que planificarle: ${comidas.join(", ") || "ninguna"}${lv ? "; " + lv : ""}. Dieta: ${p.dieta || "equilibrada, sin restricciones"}. NO PUEDE comer (alergia o intolerancia, nunca en sus platos): ${p.alergias?.join(", ") || "nada"}. No le gusta: ${p.noLeGusta?.join(", ") || "nada en especial"}.`;
+  }).join("\n");
+  const libres = (c.libres || []).map(x => x.replace("-", " a la hora de la ")).join("; ");
   const despensa = S.despensa.length ? S.despensa.map(d => `- ${d.data.nombre}${d.data.cantidad ? " (" + d.data.cantidad + ")" : ""} [${d.data.lugar}]`).join("\n") : "- (vacía)";
-  return `FAMILIA (Gijón, Asturias): Padre, Madre y un niño de 5 años.
+  return `HOGAR: ${h.nombre || "Familia"}${h.ciudad ? " en " + h.ciudad : ""}. ${c.personas.length} personas:
 ${gente}
-HIDRATOS: ${c.hidratos}
-REGLA CLAVE: un solo menú con base común; al servir, adultos con más verdura y poco hidrato, niño con su guarnición de hidrato. Nunca dos platos distintos.
-ESTRUCTURA: lunes a viernes el niño come en el COMEDOR ESCOLAR (su comida = "Comedor escolar"); allí suele tomar bastante hidrato (arroz, pasta, legumbre, patata) y fruta o yogur, así que su cena debe compensar: más verdura y la proteína que no haya tomado ese día. Adultos comen en casa. Fin de semana comen los tres. Niño además: desayuno y merienda todos los días.
-COMIDA LIBRE (comer fuera, sin compra): ${c.comidaLibre.replace("-", " a la hora de la ")}.
-CALENDARIO: compra el ${c.diaCompra.toLowerCase()}, batch cooking el domingo por la tarde que cubre ~80 % de la semana; entre semana solo tareas rápidas (≤ 15 min).
-COCINA: ${c.cocina}
-TIENDAS:\n${c.tiendas}
-PRESUPUESTO objetivo: ${c.presupuesto} €/semana (hoy gastan 200–250 €).
-DESPENSA (ya lo tienen, no comprar salvo que falte cantidad):\n${despensa}
+REGLA CLAVE: un solo menú con base común para toda la casa; al servir se adapta a cada persona (ración según la edad, guarnición de hidratos o más verdura según su dieta). Nunca platos distintos salvo que una alergia lo obligue.
+${hayComedor() ? "COMEDOR ESCOLAR: quien come en el cole suele tomar allí bastante hidrato; su cena debe compensar con más verdura y la proteína que no haya tomado ese día." : ""}
+COMIDAS LIBRES (comen fuera: no planificar ni comprar): ${libres || "ninguna"}.
+CALENDARIO: compra el ${c.diaCompra.toLowerCase()}; sesión de batch cooking el ${c.diaBatch.toLowerCase()} que deja hecho ~${c.pctBatch} % de la semana; el resto, tareas rápidas (≤ 15 min).
+COCINA: ${c.cocina || "cocina estándar con horno y fuegos"}
+TIENDAS (dónde se compra cada cosa):
+${shops().map(t => `- ${t.id}: ${t.que || "—"}`).join("\n")}
+PRESUPUESTO objetivo: ${c.presupuesto ? c.presupuesto + " €/semana" : "sin fijar, lo razonable"}${c.gastoActual ? ` (ahora gastan ${c.gastoActual} €/semana)` : ""}.
+DESPENSA (ya lo tienen, no comprar salvo que falte cantidad):
+${despensa}
 ${c.notas ? "NOTAS: " + c.notas : ""}`;
 }
 
 function promptMenu(lunes, comedor, peticiones, previos) {
-  return `Eres un planificador experto en alimentación familiar y batch cooking, con cocina española y asturiana, producto de temporada del norte de España y surtido de Mercadona.
+  const col = colegiales().map(p => p.nombre).join(", ");
+  const zona = S.config.hogar?.ciudad || "España";
+  return `Eres un planificador experto en alimentación familiar y batch cooking, con cocina española y producto de temporada.
 
 ${perfilFamilia()}
 
-SEMANA: del lunes ${lunes} al domingo siguiente (mes de ${mesDe(lunes)}). Usa fruta, verdura y pescado del Cantábrico de temporada en Asturias ese mes.
-${comedor ? "MENÚ DEL COMEDOR ESCOLAR esta semana (la cena del niño debe complementarlo y no repetir su proteína; evita también que los adultos coman ese día el mismo plato que el niño en el cole):\n" + comedor : "Esta semana NO hay colegio (vacaciones): el niño come en casa de lunes a viernes, así que su comida sale del mismo menú que la de los adultos (en \"nino\" pon cómo se le sirve)."}
+SEMANA: del lunes ${lunes} al domingo siguiente (mes de ${mesDe(lunes)}). Usa fruta, verdura y pescado de temporada en ${zona} ese mes.
+${comedor ? `MENÚ DEL COMEDOR ESCOLAR esta semana (para ${col}; su cena lo complementa sin repetir su proteína, y evita que el resto coma ese día lo mismo):\n${comedor}` : col ? `Esta semana NO hay colegio: ${col} come en casa también a mediodía de lunes a viernes.` : ""}
 ${peticiones ? "PETICIONES DE ESTA SEMANA: " + peticiones : ""}
 ${previos.length ? "Platos de semanas recientes (no repetir): " + previos.join("; ") : ""}
 
-REGLAS: pescado ≥ 3 veces, legumbre ≥ 2, carne roja como mucho 1–2, verdura en cada comida; no repetir plato ni la misma proteína dos días seguidos; pescado y carne fresca en los 2–3 primeros días o congelados en el batch; recetas aptas para un niño de 5 años (sin picante ni espinas). La piña nunca en platos compartidos.
+REGLAS: pescado ≥ 3 veces, legumbre ≥ 2, carne roja como mucho 1–2, verdura en cada comida; no repetir plato ni la misma proteína dos días seguidos; pescado y carne fresca en los 2–3 primeros días o congelados en el batch; si hay niños, recetas aptas para su edad (sin picante ni espinas). Respeta siempre las alergias.
 
-Responde SOLO con JSON válido, sin texto extra, con esta forma:
+FORMATO: usa los ids de las personas como claves. En "comida" y "cena", "servir" lleva una entrada por cada persona que come en casa en ese momento (no pongas a quien come en el cole o fuera ese mediodía, ni a quien no tenga esa comida). Si nadie come en casa en una comida o cena, pon null. "desayuno" y "merienda" solo llevan a quien los tenga ({} si nadie).
+Responde SOLO con JSON válido, sin texto extra:
 {"temporada":{"verduras":[..],"frutas":[..],"pescados":[..]},
- "dias":[{"dia":"Lunes","desayunoNino":"...","meriendaNino":"...",
-   "comida":{"libre":false,"plato":"nombre del plato","adultos":"cómo se sirve a los adultos","nino":"cómo se sirve al niño, o 'Comedor escolar'","origen":"batch|dia","nota":"cómo terminarlo o calentarlo, breve"},
+ "dias":[{"dia":"Lunes","desayuno":{"<id>":"..."},"merienda":{"<id>":"..."},
+   "comida":{"libre":false,"plato":"nombre del plato","servir":{"<id>":"cómo se le sirve a esa persona"},"origen":"batch|dia","nota":"cómo terminarlo o calentarlo, breve"},
    "cena":{ ...igual... }} ... 7 días de Lunes a Domingo],
  "nutricion":{"pescado":n,"legumbre":n,"huevo":n,"carneRoja":n,"comentario":"una frase"}}
-Para la comida libre usa {"libre":true,"plato":"Comida libre","adultos":"","nino":"","origen":"libre","nota":"Comer fuera"}.`;
+Para una comida libre usa {"libre":true,"plato":"Comida libre","servir":{},"origen":"libre","nota":"Comer fuera"}.`;
 }
 
 function catalogoPrecios(menu) {
@@ -488,30 +532,32 @@ function catalogoPrecios(menu) {
 }
 
 function promptCompra(menu) {
-  const cat = catalogoPrecios(menu);
-  return `Eres un experto en hacer la compra para una familia en Gijón.
+  const R = S.config.superReferencia || "Mercadona";
+  const cat = /mercadona/i.test(R) ? catalogoPrecios(menu) : "";
+  const tiendas = shops().map(t => t.id);
+  return `Eres un experto en hacer la compra para una familia${S.config.hogar?.ciudad ? " en " + S.config.hogar.ciudad : ""}.
 
 ${perfilFamilia()}
 
 MENÚ DE LA SEMANA (JSON):
 ${JSON.stringify(menu.dias)}
 
-Haz la lista de la compra completa para cocinar este menú (incluidos desayunos y meriendas del niño), para 2 adultos y un niño de 5 años. Descuenta lo que hay en la despensa. No incluyas nada para la comida libre ni para la comida del niño en el comedor. Asigna cada artículo a su tienda según las reglas de TIENDAS. En Mercadona agrupa por sección (Verdura, Fruta, Lácteos, Huevos, Despensa, Panadería, Congelados, Charcutería, Limpieza...).
+Haz la lista de la compra completa para cocinar este menú (incluidos desayunos y meriendas), con raciones para cada persona según su edad. Descuenta lo que hay en la despensa. No incluyas nada para las comidas libres ni para quien come en el cole o fuera. Asigna cada artículo a una de estas tiendas según las reglas de TIENDAS: ${tiendas.join(", ")}. En el supermercado agrupa por sección (Verdura, Fruta, Lácteos, Huevos, Despensa, Panadería, Congelados, Charcutería, Limpieza...).
 
 CANTIDADES EXACTAS (obligatorio):
 - Suma lo que necesitan TODOS los platos de la semana que usan ese ingrediente y da el total exacto en peso o volumen: "cantidad" es un NÚMERO y "unidad" es "g", "kg", "ml", "l" o "ud" (solo "ud" para cosas que se cuentan: huevos, aguacates, limones, barras de pan).
 - Fruta, verdura, carne y pescado SIEMPRE en g o kg (p. ej. 1.2 kg de calabaza, 650 g de lomos de merluza, 4 ud de aguacate no; di 4 ud solo si se venden sueltos por unidad y añade el peso aproximado en "formato").
 - Usa g por debajo de 1 kg y kg con decimales a partir de 1 kg.
-- En "formato" di cómo pedirlo o qué envase coger: en carnicería y pescadería cómo cortarlo ("fileteado fino", "limpio y sin espinas", "en rodajas de 2 cm"); en Mercadona el envase real y cuántos ("2 botes de 400 g", "bandeja de 500 g").
+- En "formato" di cómo pedirlo o qué envase coger: en carnicería y pescadería cómo cortarlo ("fileteado fino", "limpio y sin espinas", "en rodajas de 2 cm"); en el supermercado el envase real y cuántos ("2 botes de 400 g", "bandeja de 500 g").
 
 PRECIOS:
-- Usa como referencia los precios de MERCADONA para TODO, también para la carne, el pescado y la fruta aunque se compren en carnicería, pescadería o frutería.
-- "precio" = precio de referencia de Mercadona por kg (o por l / ud) × cantidad, en euros con 2 decimales. "precioRef" = ese precio por kg, l o ud, y "refUnidad" = "kg", "l" o "ud".
+- Usa como referencia los precios de ${R.toUpperCase()} para TODO, también para lo que se compre en otras tiendas (carne, pescado, fruta...).
+- "precio" = precio de referencia de ${R} por kg (o por l / ud) × cantidad, en euros con 2 decimales. "precioRef" = ese precio por kg, l o ud, y "refUnidad" = "kg", "l" o "ud".
 ${cat ? `- CATÁLOGO DE MERCADONA (Gijón, actualizado ${S.precios.actualizado}). Formato: nombre|envase|precio envase €|precio de referencia €/unidad. Busca el producto más parecido y usa SU precio; pon "fuente":"mercadona" cuando lo saques de aquí y "fuente":"estimado" si no hay nada parecido:
-${cat}` : `- No hay catálogo de Mercadona cargado todavía: estima con los precios de Mercadona que conozcas y pon "fuente":"estimado".`}
+${cat}` : `- Estima con los precios de ${R} que conozcas (España, ${new Date().getFullYear()}) y pon "fuente":"estimado".`}
 
 Responde SOLO con JSON válido:
-{"items":[{"nombre":"...","cantidad":0,"unidad":"g|kg|ml|l|ud","formato":"...","tienda":"Carnicería|Pescadería|Frutería|Mercadona","seccion":"...","precio":0.0,"precioRef":0.0,"refUnidad":"kg|l|ud","fuente":"mercadona|estimado","para":"plato(s) en que se usa"}],
+{"items":[{"nombre":"...","cantidad":0,"unidad":"g|kg|ml|l|ud","formato":"...","tienda":"${tiendas.join("|")}","seccion":"...","precio":0.0,"precioRef":0.0,"refUnidad":"kg|l|ud","fuente":"mercadona|estimado","para":"plato(s) en que se usa"}],
  "consejos":["2-4 ideas concretas para ahorrar esta semana sin perder calidad"]}`;
 }
 
@@ -523,7 +569,7 @@ ${perfilFamilia()}
 MENÚ (JSON):
 ${JSON.stringify(menu.dias)}
 
-Diseña la sesión de batch cooking del DOMINGO POR LA TARDE para dejar hecho ~80 % de las comidas marcadas "batch". Aprovecha en paralelo horno, freidora de aire y fuegos (sin olla exprés). Indica qué se congela y cuándo sacarlo, y hasta qué día aguanta en nevera cada cosa. Añade las tareas cortas del día a día para lo marcado "dia".
+Diseña la sesión de batch cooking del ${S.config.diaBatch.toUpperCase()} para dejar hecho ~${S.config.pctBatch} % de las comidas marcadas "batch". Aprovecha en paralelo lo que haya en COCINA (horno, fuegos, etc.). Indica qué se congela y cuándo sacarlo, y hasta qué día aguanta en nevera cada cosa. Añade las tareas cortas del día a día para lo marcado "dia".
 
 Responde SOLO con JSON válido:
 {"duracionMin":n,
@@ -538,11 +584,11 @@ function promptCambio(menu, diaIdx, slot, motivo) {
 
 ${perfilFamilia()}
 
-Menú actual de la semana (JSON): ${JSON.stringify(menu.dias.map(x => ({ dia: x.dia, comida: x.comida.plato, cena: x.cena.plato })))}
+Menú actual de la semana (JSON): ${JSON.stringify(menu.dias.map(x => ({ dia: x.dia, comida: x.comida?.plato, cena: x.cena?.plato })))}
 
 Cambia la ${slot} del ${d.dia} (ahora: "${d[slot].plato}") por otra opción que encaje con el resto de la semana, de temporada, sin repetir proteína con el día anterior o siguiente.${motivo ? " Motivo o preferencia: " + motivo : ""}
-${slot === "comida" && diaIdx < 5 ? 'El niño come en el comedor: "nino":"Comedor escolar".' : ""}
-Responde SOLO con JSON: {"libre":false,"plato":"...","adultos":"...","nino":"...","origen":"batch|dia","nota":"..."}`;
+En "servir" pon una entrada para cada una de estas personas (por id): ${JSON.stringify(Object.keys(d[slot]?.servir || {}))}.
+Responde SOLO con JSON: {"libre":false,"plato":"...","servir":{"<id>":"cómo se le sirve"},"origen":"batch|dia","nota":"..."}`;
 }
 
 /* =========================================================
@@ -609,7 +655,7 @@ async function generarCompra(id, menu) {
   const writes = items.map((it, i) => store.set(`semanas/${id}/compra/${String(i).padStart(3, "0")}-${uid()}`, {
     nombre: String(it.nombre || ""), cantidad: fmtCantidad(it.cantidad), unidad: String(it.unidad || ""), formato: String(it.formato || ""),
     precioRef: Number(it.precioRef) || 0, refUnidad: String(it.refUnidad || ""), fuente: it.fuente === "mercadona" ? "mercadona" : "estimado",
-    tienda: SHOPS.some(s => s.id === it.tienda) ? it.tienda : "Mercadona", seccion: String(it.seccion || "Otros"),
+    tienda: shops().some(s => s.id === it.tienda) ? it.tienda : shops().at(-1).id, seccion: String(it.seccion || "Otros"),
     precio: Number(it.precio) || 0, para: String(it.para || ""), estado: "pendiente", orden: i
   }));
   await Promise.all(writes);
@@ -699,8 +745,11 @@ function render(force) {
   const n = document.getElementById("notice");
   let notice = "";
   if (S.error) notice += `<div class="banner err"><span>${esc(S.error)}</span><button class="btn sm" data-act="cerrar-error">Cerrar</button></div>`;
-  if (!shared) notice += `<div class="banner warn small"><span>Modo local: los datos se guardan solo en este navegador${sample ? "" : " y la generación con IA no está disponible"}. Ábrela desde claude.ai para compartirla con tu pareja y generar menús.</span></div>`;
+  if (!shared) notice += `<div class="banner warn small"><span>Modo local: los datos se guardan solo en este navegador${sample ? "" : " y la generación con IA no está disponible"}. Ábrela desde claude.ai para compartirla con tu familia y generar menús.</span></div>`;
   n.innerHTML = notice; n.hidden = !notice;
+  const h = S.config.hogar || {};
+  document.getElementById("subtitulo").textContent = [h.ciudad, S.config.personas.length ? S.config.personas.length + (S.config.personas.length === 1 ? " persona" : " personas") : ""].filter(Boolean).join(" · ");
+  document.getElementById("tab-batch-btn").textContent = S.config.diaBatch || "Día de cocina";
   const fn = { semana: renderSemana, compra: renderCompra, batch: renderBatch, despensa: renderDespensa, ajustes: renderAjustes }[S.tab];
   const el = document.getElementById("tab-" + S.tab);
   // No redibujar mientras alguien escribe en un formulario de esta pestaña
@@ -726,6 +775,7 @@ function panelGenerar() {
       <ul>${g.pasos.map((p, i) => `<li class="${i < g.paso ? "done" : i === g.paso && !g.error ? "now" : ""}">${i < g.paso ? "✓" : i === g.paso && !g.error ? '<span class="spin">◌</span>' : "·"} ${esc(p)}</li>`).join("")}</ul>
       ${g.error ? `<p class="muted">${esc(g.error)}</p><div class="row"><button class="btn" data-act="cerrar-gen">Cerrar</button></div>` : `<p class="small muted">Tarda uno o dos minutos. Puedes seguir usando la app.</p>`}</div>`;
   }
+  if (!S.config.personas.length) return `<div class="banner"><span><b>Primero, cuéntale a la app quién vive en casa.</b> Solo hay que hacerlo una vez: personas, edades, alergias, comidas libres, tiendas y el menú del cole si lo hay.</span><button class="btn sm primary" data-act="ir-ajustes">Configurar la casa</button></div>`;
   // por defecto, el primer lunes que todavía no tiene plan
   let lunes = S.genLunes || proximoLunes();
   while (!S.genLunes && S.semanas.some(x => x.id === lunes)) { const d = new Date(lunes + "T12:00:00"); d.setDate(d.getDate() + 7); lunes = d.toISOString().slice(0, 10); }
@@ -736,11 +786,11 @@ function panelGenerar() {
         <div class="field"><label for="g-lunes">Semana que empieza el lunes</label><input type="date" id="g-lunes" value="${lunes}" required></div>
         <div class="field"><label for="g-pet">Peticiones para esta semana</label><input type="text" id="g-pet" placeholder="Ej.: queremos fabada el domingo, algo de marisco…"></div>
       </div>
-      <div class="field"><label for="g-comedor">Comedor del cole esa semana</label>
-        <select id="g-comedor">${[1,2,3,4].map(n => `<option value="${n}" ${n === semanaComedor(lunes) ? "selected" : ""}>Semana ${n} del menú (menús ${n*5-4}–${n*5})</option>`).join("")}<option value="0">No hay cole (vacaciones o festivos)</option></select>
-        <span class="hint" id="g-comedor-prev">${esc(COMEDOR[semanaComedor(lunes)-1].map((x,i) => DIAS[i].slice(0,2) + ": " + x.split(" · ")[1]).join(" · "))}</span>
-        <span class="hint">La app avanza sola a la semana siguiente del menú. Las cenas del niño complementan lo que comió en el cole.</span></div>
-      <div class="row"><button class="btn primary" type="submit" ${sample ? "" : "disabled"}>Generar menú, compra y plan del domingo</button>
+      ${hayComedor() ? `<div class="field"><label for="g-comedor">${esc(S.config.comedor.nombre || "Comedor del cole")} esa semana</label>
+        <select id="g-comedor">${S.config.comedor.semanas.map((w, k) => `<option value="${k + 1}" ${k + 1 === semanaComedor(lunes) ? "selected" : ""}>Semana ${k + 1} del menú</option>`).join("")}<option value="0">No hay cole (vacaciones o festivos)</option></select>
+        <span class="hint" id="g-comedor-prev">${esc(previewComedor(semanaComedor(lunes)))}</span>
+        <span class="hint">La app avanza sola a la semana siguiente del menú. Las cenas de quien come en el cole complementan lo que comió allí.</span></div>` : ""}
+      <div class="row"><button class="btn primary" type="submit" ${sample ? "" : "disabled"}>Generar menú, compra y plan del ${esc(S.config.diaBatch.toLowerCase())}</button>
       ${sample ? "" : `<span class="small muted">Necesita abrirse en claude.ai.</span>`}</div>
     </form></details>`;
 }
@@ -759,7 +809,7 @@ function renderSemana() {
   const pres = S.config.presupuesto;
   const nut = s.menu?.nutricion || {};
   h += `<div class="summary">
-    <div class="stat"><span class="label">Compra estimada</span><div class="v num">${eur(est)}</div><div class="meter ${est > pres ? "over" : ""}"><i style="width:${Math.min(100, est / pres * 100)}%"></i></div><span class="small muted">Objetivo ${eur(pres)}</span></div>
+    <div class="stat"><span class="label">Compra estimada</span><div class="v num">${eur(est)}</div><div class="meter ${pres && est > pres ? "over" : ""}"><i style="width:${pres ? Math.min(100, est / pres * 100) : 0}%"></i></div><span class="small muted">${pres ? "Objetivo " + eur(pres) : "Sin presupuesto fijado"}</span></div>
     <div class="stat"><span class="label">Pescado</span><div class="v num">${nut.pescado ?? "–"}<span class="small muted"> veces</span></div><span class="small muted">mín. 3</span></div>
     <div class="stat"><span class="label">Legumbre</span><div class="v num">${nut.legumbre ?? "–"}<span class="small muted"> veces</span></div><span class="small muted">mín. 2</span></div>
     <div class="stat"><span class="label">Del batch</span><div class="v num">${pctBatch(s.menu)}%</div><span class="small muted">de comidas y cenas</span></div>
@@ -771,10 +821,18 @@ function renderSemana() {
   (s.menu?.dias || []).forEach((d, i) => {
     h += `<article class="day"><div class="day-h"><span class="d">${esc(d.dia)}</span><span class="small muted">${esc(fechaCorta(s.lunes, i))}</span></div>
       <div class="meals">${renderMeal(d.comida, "Comida", i, "comida", s)}${renderMeal(d.cena, "Cena", i, "cena", s)}</div>
-      <div class="kidline">${s.comedorDias?.[i] ? `<span><b>Cole (menú ${ (s.comedorSemana-1)*5 + i + 1 }):</b> ${esc(s.comedorDias[i])}</span>` : ""}<span><b>Desayuno niño:</b> ${esc(d.desayunoNino)}</span><span><b>Merienda:</b> ${esc(d.meriendaNino)}</span></div></article>`;
+      ${lineaExtras(s, d, i)}</article>`;
   });
   h += panelRehacer(s);
   return h;
+}
+function lineaExtras(s, d, i) {
+  const x = [];
+  if (s.comedorDias?.[i]) x.push(`<span><b>Cole${s.comedorSemana ? " (semana " + s.comedorSemana + ")" : ""}:</b> ${esc(s.comedorDias[i])}</span>`);
+  if (d.desayunoNino) x.push(`<span><b>Desayuno niño:</b> ${esc(d.desayunoNino)}</span>`);
+  if (d.meriendaNino) x.push(`<span><b>Merienda niño:</b> ${esc(d.meriendaNino)}</span>`);
+  ["desayuno", "merienda"].forEach(sl => Object.entries(d[sl] || {}).forEach(([pid, t]) => { if (t) x.push(`<span><b>${SLOT_NOMBRE[sl]} ${esc(nombreDe(pid))}:</b> ${esc(t)}</span>`); }));
+  return x.length ? `<div class="kidline">${x.join("")}</div>` : "";
 }
 function bannerDesfase(texto, boton) {
   if (S.confirm === "compra") return `<div class="banner err"><span>Ya habéis marcado cosas de esta lista. Si la rehacéis, se pierde lo marcado y sale una lista nueva.</span><div class="row"><button class="btn sm" data-act="confirm">Cancelar</button><button class="btn sm primary" data-act="regen-compra" data-ok="1">Sí, rehacer la lista</button></div></div>`;
@@ -796,9 +854,9 @@ function renderMeal(m, titulo, i, slot, s) {
   if (!m) return "";
   if (m.libre) return `<div class="meal free"><div class="row between"><span class="label">${titulo}</span><span class="tag libre">Libre</span></div><div class="plato">Comida libre</div><span class="small muted">${esc(m.nota)}</span></div>`;
   const key = i + "-" + slot, busy = S.swapping === key;
-  return `<div class="meal"><div class="row between"><span class="label">${titulo}</span><span class="tag ${m.origen === "batch" ? "batch" : "dia"}">${m.origen === "batch" ? "Batch domingo" : "Del día"}</span></div>
+  return `<div class="meal"><div class="row between"><span class="label">${titulo}</span><span class="tag ${m.origen === "batch" ? "batch" : "dia"}">${m.origen === "batch" ? "Batch " + esc(S.config.diaBatch.toLowerCase()) : "Del día"}</span></div>
     <div class="plato">${esc(m.plato)}</div>
-    <div class="who">${m.adultos ? `<b>Adultos</b><span>${esc(m.adultos)}</span>` : ""}${m.nino ? `<b>Niño</b><span>${esc(m.nino)}</span>` : ""}</div>
+    <div class="who">${m.servir ? Object.entries(m.servir).map(([pid, t]) => `<b>${esc(nombreDe(pid))}</b><span>${esc(t)}</span>`).join("") : `${m.adultos ? `<b>Adultos</b><span>${esc(m.adultos)}</span>` : ""}${m.nino ? `<b>Niño</b><span>${esc(m.nino)}</span>` : ""}`}</div>
     ${m.nota ? `<span class="small muted">${esc(m.nota)}</span>` : ""}
     ${s.ejemplo || !sample ? "" : `<div><button class="btn ghost sm" data-act="swap" data-i="${i}" data-slot="${slot}" ${busy || S.swapping ? "disabled" : ""}>${busy ? '<span class="spin">◌</span> Buscando otro…' : "Cambiar plato"}</button></div>`}
   </div>`;
@@ -811,7 +869,7 @@ function renderCompra() {
   const pres = S.config.presupuesto;
   const est = items.filter(i => i.estado !== "casa").reduce((a, i) => a + (Number(i.precio) || 0), 0);
   const gastos = s.gastos || {};
-  const real = SHOPS.reduce((a, sh) => a + (Number(gastos[sh.id]) || 0), 0);
+  const real = Object.values(gastos).reduce((a, v) => a + (Number(v) || 0), 0);
   const pendientes = items.filter(i => i.estado === "pendiente");
   const carrito = items.filter(i => i.estado === "carrito");
   const comprados = items.filter(i => i.estado === "comprado");
@@ -822,10 +880,10 @@ function renderCompra() {
   if (s.ejemplo) h += `<div class="banner small"><span>Lista de ejemplo para probar: toca los productos para echarlos al carrito. No se guarda.</span></div>`;
   if (s.compraDesfasada) h += bannerDesfase("El menú ha cambiado desde que se hizo esta lista.", "Rehacer lista");
   const deMerca = items.filter(i => i.fuente === "mercadona").length;
-  h += `<p class="small muted">${S.precios?.items?.length ? `Precios de referencia de Mercadona Gijón, actualizados el ${esc(S.precios.actualizado)}. ${deMerca} de ${items.length} artículos con precio de catálogo (M); el resto, estimado (≈).` : "Precios estimados con referencia Mercadona (≈). Todavía no está cargado el catálogo real de Mercadona."}</p>`;
+  h += `<p class="small muted">${S.precios?.items?.length && /mercadona/i.test(S.config.superReferencia) ? `Precios de referencia de Mercadona (CP ${esc(S.precios.cp)}), actualizados el ${esc(S.precios.actualizado)}. ${deMerca} de ${items.length} artículos con precio de catálogo (M); el resto, estimado (≈).` : `Precios estimados con referencia ${esc(S.config.superReferencia || "Mercadona")} (≈).`}</p>`;
   h += `<div class="summary">
-    <div class="stat"><span class="label">Falta por comprar</span><div class="v num">${eur(suma(pendientes))}</div><div class="meter ${est > pres ? "over" : ""}"><i style="width:${Math.min(100, est / pres * 100)}%"></i></div><span class="small muted">Semana ≈ ${eur(est)} · objetivo ${eur(pres)}</span></div>
-    <div class="stat"><span class="label">Gastado de verdad</span><div class="v num">${real ? eur(real) : "–"}</div><span class="small muted">${real ? (real <= pres ? "Dentro del objetivo" : "Te pasas " + eur(real - pres)) : "Apunta el ticket de cada tienda"}</span></div>
+    <div class="stat"><span class="label">Falta por comprar</span><div class="v num">${eur(suma(pendientes))}</div><div class="meter ${pres && est > pres ? "over" : ""}"><i style="width:${pres ? Math.min(100, est / pres * 100) : 0}%"></i></div><span class="small muted">Semana ≈ ${eur(est)}${pres ? " · objetivo " + eur(pres) : ""}</span></div>
+    <div class="stat"><span class="label">Gastado de verdad</span><div class="v num">${real ? eur(real) : "–"}</div><span class="small muted">${real ? (!pres ? "" : real <= pres ? "Dentro del objetivo" : "Te pasas " + eur(real - pres)) : "Apunta el ticket de cada tienda"}</span></div>
   </div>`;
 
   if (carrito.length && S.verCarrito) {
@@ -833,7 +891,7 @@ function renderCompra() {
       ${carrito.map(i => `<button class="item as-btn" data-act="estado" data-item="${esc(i.id)}" data-to="pendiente"><span class="tick on" aria-hidden="true"></span><span><span class="n">${esc(i.nombre)}</span><span class="q"> · ${esc(i.tienda)}</span></span><span class="price small">${eur(i.precio)}</span></button>`).join("")}</div>`;
   }
 
-  SHOPS.forEach(sh => {
+  shopsConItems(items).forEach(sh => {
     const its = items.filter(i => i.tienda === sh.id);
     if (!its.length) return;
     const pend = its.filter(i => i.estado === "pendiente");
@@ -842,7 +900,7 @@ function renderCompra() {
       <div class="row"><span class="small muted num">≈ ${eur(suma(pend))}</span>
       <label class="spent">Ticket <input type="number" inputmode="decimal" step="0.01" min="0" id="gasto-${sh.id}" data-shop="${sh.id}" value="${gastos[sh.id] ?? ""}"> €</label></div></div>`;
     secs.forEach(sec => {
-      if (secs.length > 1 || sh.id === "Mercadona") h += `<div class="sec label">${esc(sec)}</div>`;
+      if (secs.length > 1) h += `<div class="sec label">${esc(sec)}</div>`;
       pend.filter(i => (i.seccion || "Otros") === sec).forEach(i => {
         h += `<div class="item"><button class="as-btn itemtap" data-act="estado" data-item="${esc(i.id)}" data-to="carrito" aria-label="Al carrito: ${esc(i.nombre)}"><span class="tick" aria-hidden="true"></span>
           <span><span class="n">${esc(i.nombre)}</span><span class="q"><b class="qty num">${esc(i.cantidad)} ${esc(i.unidad)}</b>${i.formato ? " · " + esc(i.formato) : ""}${i.para ? " · " + esc(i.para) : ""}</span></span></button>
@@ -859,7 +917,7 @@ function renderCompra() {
 
   h += `<form id="form-add-item" class="panel stack"><h3>Añadir algo a la lista</h3>
     <div class="grid2"><div class="field"><label for="ai-nombre">Producto</label><input type="text" id="ai-nombre" required placeholder="Papel de cocina"></div>
-    <div class="field"><label for="ai-tienda">Tienda</label><select id="ai-tienda">${SHOPS.map(x => `<option ${x.id === "Mercadona" ? "selected" : ""}>${x.id}</option>`).join("")}</select></div>
+    <div class="field"><label for="ai-tienda">Tienda</label><select id="ai-tienda">${shops().map((x, k, a) => `<option ${k === a.length - 1 ? "selected" : ""}>${esc(x.id)}</option>`).join("")}</select></div>
     <div class="field"><label for="ai-cant">Cantidad</label><input type="text" id="ai-cant" placeholder="1 paquete"></div>
     <div class="field"><label for="ai-precio">Precio aprox. (€)</label><input type="number" step="0.01" min="0" id="ai-precio"></div></div>
     <div><button class="btn primary" type="submit">Añadir</button></div></form>`;
@@ -874,12 +932,12 @@ function renderCompra() {
 }
 
 function historial() {
-  const rows = S.semanas.slice().sort((a, b) => b.id.localeCompare(a.id)).slice(0, 8).map(s => ({ id: s.id, real: SHOPS.reduce((a, sh) => a + (Number(s.data.gastos?.[sh.id]) || 0), 0) })).filter(r => r.real > 0);
+  const rows = S.semanas.slice().sort((a, b) => b.id.localeCompare(a.id)).slice(0, 8).map(s => ({ id: s.id, real: Object.values(s.data.gastos || {}).reduce((a, v) => a + (Number(v) || 0), 0) })).filter(r => r.real > 0);
   if (!rows.length) return "";
   const max = Math.max(250, ...rows.map(r => r.real));
   const media = rows.reduce((a, r) => a + r.real, 0) / rows.length;
-  return `<div class="panel stack"><div class="row between"><h3>Gasto real por semana</h3><span class="small muted">Media ${eur(media)} · antes 200–250 €</span></div>
-    ${rows.map(r => `<div class="hist"><span class="num">${esc(fechaCorta(r.id))}</span><div class="bar"><i class="${r.real > S.config.presupuesto ? "over" : ""}" style="width:${r.real / max * 100}%"></i></div><span class="num" style="text-align:right">${eur(r.real)}</span></div>`).join("")}</div>`;
+  return `<div class="panel stack"><div class="row between"><h3>Gasto real por semana</h3><span class="small muted">Media ${eur(media)}${S.config.gastoActual ? " · antes " + esc(S.config.gastoActual) + " €" : ""}</span></div>
+    ${rows.map(r => `<div class="hist"><span class="num">${esc(fechaCorta(r.id))}</span><div class="bar"><i class="${S.config.presupuesto && r.real > S.config.presupuesto ? "over" : ""}" style="width:${r.real / max * 100}%"></i></div><span class="num" style="text-align:right">${eur(r.real)}</span></div>`).join("")}</div>`;
 }
 
 function renderBatch() {
@@ -890,7 +948,7 @@ function renderBatch() {
   const hechos = new Set(s.batchHecho || []);
   const pasos = b.pasos || [];
   const h0 = Math.floor((b.duracionMin || 0) / 60), m0 = (b.duracionMin || 0) % 60;
-  let h = `<div class="row between"><div><span class="label">Domingo por la tarde</span><h2>Sesión de ${h0 ? h0 + " h " : ""}${m0 ? m0 + " min" : ""}</h2></div>${selectorSemana()}</div>`;
+  let h = `<div class="row between"><div><span class="label">${esc(S.config.diaBatch)}: sesión de cocina</span><h2>Sesión de ${h0 ? h0 + " h " : ""}${m0 ? m0 + " min" : ""}</h2></div>${selectorSemana()}</div>`;
   h += `<div class="summary"><div class="stat"><span class="label">Hecho</span><div class="v num">${hechos.size}/${pasos.length}</div><div class="meter"><i style="width:${pasos.length ? hechos.size / pasos.length * 100 : 0}%"></i></div></div>
     <div class="stat"><span class="label">Cubre</span><div class="v num">${pctBatch(s.menu)}%</div><span class="small muted">de las comidas</span></div></div>`;
   h += `<div class="panel" style="padding:0">${pasos.map((p, i) => `<div class="step ${hechos.has(i) ? "done" : ""}">
@@ -929,27 +987,162 @@ function renderDespensa() {
 }
 
 function renderAjustes() {
-  const c = S.config;
-  let h = `<div><span class="label">Se usa en cada menú que genera la IA</span><h2>Gustos y ajustes</h2></div>`;
-  h += `<div class="panel stack"><h3>Qué come cada uno</h3><div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">`;
-  c.personas.forEach(p => {
-    h += `<div class="person"><h3>${esc(p.nombre)}</h3>
-      <span class="label">No puede comer</span><div class="season">${p.alergias.map((a, i) => `<span class="chip" style="border-color:var(--apple)">${esc(a)}<button aria-label="Quitar ${esc(a)}" data-act="quitar-chip" data-p="${p.id}" data-k="alergias" data-i="${i}">×</button></span>`).join("") || `<span class="small muted">Nada</span>`}</div>
-      <form class="chipadd" data-addchip data-p="${p.id}" data-k="alergias"><input type="text" id="al-${p.id}" placeholder="Añadir" aria-label="Añadir alimento que no puede comer ${esc(p.nombre)}"><button class="btn sm" type="submit">+</button></form>
-      <span class="label">No le gusta</span><div class="season">${p.noLeGusta.map((a, i) => `<span class="chip">${esc(a)}<button aria-label="Quitar ${esc(a)}" data-act="quitar-chip" data-p="${p.id}" data-k="noLeGusta" data-i="${i}">×</button></span>`).join("") || `<span class="small muted">Nada apuntado</span>`}</div>
-      <form class="chipadd" data-addchip data-p="${p.id}" data-k="noLeGusta"><input type="text" id="ng-${p.id}" placeholder="Añadir" aria-label="Añadir alimento que no le gusta a ${esc(p.nombre)}"><button class="btn sm" type="submit">+</button></form></div>`;
+  const c = S.draft || S.config;
+  const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(label ?? v)}</option>`;
+  let h = `<div><span class="label">Se usa en cada menú que genera la IA</span><h2>Tu casa</h2></div>`;
+  if (!S.config.personas.length) h += `<div class="banner"><span>Rellena esto una vez y pulsa <b>Guardar</b> abajo. Luego podrás cambiarlo cuando quieras.</span></div>`;
+  if (S.draft) h += `<div class="banner warn small"><span>Hay cambios sin guardar.</span><div class="row"><button class="btn sm" type="button" data-act="descartar">Descartar</button><button class="btn sm primary" type="submit" form="form-ajustes">Guardar</button></div></div>`;
+  h += `<form id="form-ajustes" class="stack">`;
+
+  h += `<div class="panel stack"><h3>La casa</h3><div class="grid2">
+    <div class="field"><label for="a-nombre">Nombre</label><input type="text" id="a-nombre" value="${esc(c.hogar.nombre)}" placeholder="Casa de los García"></div>
+    <div class="field"><label for="a-ciudad">Ciudad y provincia</label><input type="text" id="a-ciudad" value="${esc(c.hogar.ciudad)}" placeholder="Gijón (Asturias)"><span class="hint">Para la fruta, verdura y pescado de temporada.</span></div>
+    <div class="field"><label for="a-cp">Código postal</label><input type="text" id="a-cp" inputmode="numeric" value="${esc(c.hogar.cp)}" placeholder="33201"></div></div></div>`;
+
+  h += `<div class="panel stack"><div class="row between"><h3>Quién come en casa</h3><button class="btn sm" type="button" data-act="add-persona">Añadir persona</button></div>`;
+  if (!c.personas.length) h += `<p class="small muted">Todavía no hay nadie. Añade a cada persona de la casa.</p>`;
+  h += `<div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">`;
+  c.personas.forEach((p, k) => {
+    h += `<fieldset class="person"><div class="row between"><legend class="label">Persona ${k + 1}</legend><button class="linkbtn" type="button" data-act="quitar-persona" data-k="${k}">Quitar</button></div>
+      <div class="grid2"><div class="field"><label for="p-nombre-${k}">Nombre</label><input type="text" id="p-nombre-${k}" value="${esc(p.nombre)}" placeholder="Lucía" required></div>
+      <div class="field"><label for="p-edad-${k}">Edad</label><input type="number" id="p-edad-${k}" min="0" max="120" value="${esc(p.edad)}" placeholder="adulto"></div></div>
+      <div class="field"><span class="label">Comidas que hay que planificarle</span><div class="row">${SLOTS.map(sl => `<label class="small"><input type="checkbox" id="p-${sl}-${k}" ${p.comidas?.[sl] ? "checked" : ""}> ${SLOT_NOMBRE[sl]}</label>`).join("")}</div></div>
+      <div class="field"><label for="p-lv-${k}">A mediodía, de lunes a viernes</label><select id="p-lv-${k}">${opt("casa", p.mediodiaLV, "Come en casa")}${opt("cole", p.mediodiaLV, "Come en el comedor del cole")}${opt("fuera", p.mediodiaLV, "Come fuera (trabajo…)")}</select></div>
+      <div class="field"><label for="p-dieta-${k}">Dieta</label><textarea id="p-dieta-${k}" style="min-height:60px" placeholder="Ej.: reduce hidratos, pan y pasta integral; vegetariana; necesita más proteína…">${esc(p.dieta)}</textarea></div>
+      <div class="field"><label for="p-al-${k}">Alergias e intolerancias</label><input type="text" id="p-al-${k}" value="${esc((p.alergias || []).join(", "))}" placeholder="piña, lactosa…"><span class="hint">Nunca aparecerán en sus platos. Separa con comas.</span></div>
+      <div class="field"><label for="p-ng-${k}">No le gusta</label><input type="text" id="p-ng-${k}" value="${esc((p.noLeGusta || []).join(", "))}" placeholder="coliflor, champiñones…"></div>
+    </fieldset>`;
   });
   h += `</div></div>`;
-  h += `<form id="form-ajustes" class="panel stack"><h3>Semana y presupuesto</h3><div class="grid2">
-    <div class="field"><label for="a-pres">Presupuesto semanal (€)</label><input type="number" id="a-pres" min="0" step="5" value="${c.presupuesto}"><span class="hint">Hoy gastáis entre 200 y 250 €.</span></div>
-    <div class="field"><label for="a-libre">Comida libre</label><select id="a-libre">${["Sábado-comida","Domingo-comida","Sábado-cena","Viernes-cena"].map(o => `<option value="${o}" ${o === c.comidaLibre ? "selected" : ""}>${o.replace("-", " · ")}</option>`).join("")}</select></div>
-    <div class="field"><label for="a-compra">Día de compra</label><select id="a-compra">${["Jueves","Viernes","Sábado"].map(o => `<option ${o === c.diaCompra ? "selected" : ""}>${o}</option>`).join("")}</select></div></div>
-    <div class="field"><label for="a-hid">Hidratos</label><textarea id="a-hid">${esc(c.hidratos)}</textarea></div>
-    <div class="field"><label for="a-tiendas">Qué se compra en cada tienda</label><textarea id="a-tiendas">${esc(c.tiendas)}</textarea></div>
-    <div class="field"><label for="a-cocina">Cocina y utensilios</label><textarea id="a-cocina">${esc(c.cocina)}</textarea></div>
-    <div class="field"><label for="a-notas">Otras notas para la IA</label><textarea id="a-notas" placeholder="Ej.: el niño está en fase de no querer nada verde; los martes llegamos tarde…">${esc(c.notas)}</textarea></div>
-    <div class="row"><button class="btn primary" type="submit">Guardar ajustes</button><span id="ajustes-ok" class="small muted" hidden>Guardado</span></div></form>`;
+
+  h += `<div class="panel stack"><h3>Comidas libres</h3><p class="small muted">Las que coméis fuera: no se planifican ni se compran.</p>
+    <div class="tablewrap"><table class="libres"><thead><tr><th></th>${DIAS.map(d => `<th>${d.slice(0, 3)}</th>`).join("")}</tr></thead><tbody>
+    ${["comida", "cena"].map(sl => `<tr><th>${SLOT_NOMBRE[sl]}</th>${DIAS.map((d, i) => `<td><input type="checkbox" id="l-${i}-${sl}" aria-label="${d} ${sl}" ${c.libres.includes(d + "-" + sl) ? "checked" : ""}></td>`).join("")}</tr>`).join("")}
+    </tbody></table></div></div>`;
+
+  h += `<div class="panel stack"><h3>Compra y cocina</h3><div class="grid2">
+    <div class="field"><label for="a-pres">Presupuesto semanal (€)</label><input type="number" id="a-pres" min="0" step="5" value="${c.presupuesto || ""}"></div>
+    <div class="field"><label for="a-gasto">Lo que gastáis ahora por semana (€)</label><input type="text" id="a-gasto" value="${esc(c.gastoActual)}" placeholder="200–250"></div>
+    <div class="field"><label for="a-compra">Día de compra</label><select id="a-compra">${DIAS.map(d => opt(d, c.diaCompra)).join("")}</select></div>
+    <div class="field"><label for="a-batch">Día de batch cooking</label><select id="a-batch">${DIAS.map(d => opt(d, c.diaBatch)).join("")}</select></div>
+    <div class="field"><label for="a-pct">Cuánto dejar hecho ese día (%)</label><input type="number" id="a-pct" min="20" max="100" step="5" value="${c.pctBatch}"></div></div>
+    <div class="field"><label for="a-cocina">Cocina y utensilios</label><textarea id="a-cocina" placeholder="Horno, freidora de aire, olla exprés, Thermomix…">${esc(c.cocina)}</textarea></div></div>`;
+
+  h += `<div class="panel stack"><div class="row between"><h3>Tiendas</h3><button class="btn sm" type="button" data-act="add-tienda">Añadir tienda</button></div>
+    <p class="small muted">La lista de la compra sale separada por estas tiendas, en este orden.</p>
+    ${c.tiendas.map((t, k) => `<div class="grid2" style="grid-template-columns:1fr 2fr auto;align-items:end">
+      <div class="field"><label for="t-nombre-${k}">Tienda</label><input type="text" id="t-nombre-${k}" value="${esc(t.nombre)}" placeholder="Carnicería"></div>
+      <div class="field"><label for="t-que-${k}">Qué se compra ahí</label><input type="text" id="t-que-${k}" value="${esc(t.que)}" placeholder="Toda la carne"></div>
+      <button class="linkbtn" type="button" data-act="quitar-tienda" data-k="${k}" style="padding-bottom:10px">Quitar</button></div>`).join("")}
+    <div class="field"><label for="a-ref">Supermercado de referencia para los precios</label><input type="text" id="a-ref" value="${esc(c.superReferencia)}" placeholder="Mercadona"><span class="hint">Se usan sus precios por kilo para estimar toda la compra.</span></div></div>`;
+
+  const com = c.comedor, N = com.semanas.length;
+  const refLunes = com.ref?.lunes || proximoLunes();
+  h += `<div class="panel stack"><h3>Menú del comedor escolar</h3>
+    <p class="small muted">Solo se usa para quien tenga «Come en el comedor del cole». Sube el PDF o una foto del menú y la IA lo pasa a semanas.</p>
+    <div class="field"><label for="co-nombre">Colegio o comedor</label><input type="text" id="co-nombre" value="${esc(com.nombre)}" placeholder="CP Jovellanos"></div>
+    <div class="field"><label for="co-file">Importar menú (PDF o foto)</label><input type="file" id="co-file" accept="application/pdf,image/*" ${S.importMsg?.busy ? "disabled" : ""}>
+      ${S.importMsg ? `<span class="small" style="${S.importMsg.err ? "color:var(--apple)" : ""}">${S.importMsg.busy ? '<span class="spin">◌</span> ' : ""}${esc(S.importMsg.msg)}</span>` : ""}</div>
+    ${N ? `<div class="grid2"><div class="field"><label for="co-ref-lunes">El lunes</label><input type="date" id="co-ref-lunes" value="${esc(refLunes)}"></div>
+      <div class="field"><label for="co-ref">toca la</label><select id="co-ref">${com.semanas.map((w, k) => opt(String(k + 1), String(com.ref?.n || 1), "Semana " + (k + 1) + " del menú")).join("")}</select></div></div>
+      <span class="hint">A partir de ahí la app va rotando sola por las ${N} semanas.</span>` : ""}
+    ${com.semanas.map((w, k) => `<details class="week" ${S.abierta === k ? "open" : ""}><summary><b>Semana ${k + 1}</b> <span class="small muted">${esc(w.map(x => x.split(" · ")[1] || x).filter(Boolean).join(" · ").slice(0, 90))}</span></summary>
+      <div class="stack" style="margin-top:8px">${DIAS.slice(0, 5).map((d, i) => `<div class="field"><label for="co-${k}-${i}">${d}</label><input type="text" id="co-${k}-${i}" value="${esc(w[i])}" placeholder="Primer plato · Segundo · Postre"></div>`).join("")}
+      <div><button class="linkbtn" type="button" data-act="quitar-semana" data-k="${k}">Quitar esta semana</button></div></div></details>`).join("")}
+    <div class="row"><button class="btn sm" type="button" data-act="add-semana">Añadir semana a mano</button>${N ? `<button class="btn sm ghost" type="button" data-act="vaciar-comedor">Quitar todo el menú</button>` : ""}</div></div>`;
+
+  h += `<div class="panel stack"><h3>Otras notas para la IA</h3><div class="field"><label for="a-notas" class="sr">Notas</label><textarea id="a-notas" placeholder="Ej.: los martes llegamos tarde; el pequeño está en fase de no querer nada verde…">${esc(c.notas)}</textarea></div></div>`;
+  h += `<div class="row"><button class="btn primary" type="submit">Guardar</button><span id="ajustes-ok" class="small muted" ${S.guardado ? "" : "hidden"}>Guardado</span></div></form>`;
+
+  h += `<div class="panel stack small"><h3>¿Para otra familia?</h3><p>Todo lo que hay aquí lo ven y lo cambian las personas con las que compartes este enlace. Para otra casa (tus padres, un amigo…), pide a quien te pasó la app una copia en blanco con su propio enlace. Al abrirla, solo tendrán que rellenar esta pantalla.</p></div>`;
   return h;
+}
+
+function leerAjustes() {
+  const f = document.getElementById("form-ajustes");
+  const d = structuredClone(S.draft || S.config);
+  if (!f) return d;
+  const q = id => f.querySelector("#" + id);
+  const v = id => (q(id)?.value ?? "").trim();
+  const lista = t => t.split(/[,;\n]/).map(x => x.trim().toLowerCase()).filter(Boolean);
+  d.hogar = { nombre: v("a-nombre"), ciudad: v("a-ciudad"), cp: v("a-cp") };
+  d.personas = d.personas.map((p, k) => ({ id: p.id, nombre: v(`p-nombre-${k}`), edad: v(`p-edad-${k}`), dieta: v(`p-dieta-${k}`),
+    alergias: lista(v(`p-al-${k}`)), noLeGusta: lista(v(`p-ng-${k}`)), mediodiaLV: v(`p-lv-${k}`) || "casa",
+    comidas: Object.fromEntries(SLOTS.map(sl => [sl, !!q(`p-${sl}-${k}`)?.checked])) }));
+  d.libres = [];
+  DIAS.forEach((dia, i) => ["comida", "cena"].forEach(sl => { if (q(`l-${i}-${sl}`)?.checked) d.libres.push(`${dia}-${sl}`); }));
+  d.presupuesto = Number(v("a-pres")) || 0; d.gastoActual = v("a-gasto");
+  d.diaCompra = v("a-compra") || d.diaCompra; d.diaBatch = v("a-batch") || d.diaBatch;
+  d.pctBatch = Math.min(100, Math.max(20, Number(v("a-pct")) || 80));
+  d.cocina = v("a-cocina"); d.notas = v("a-notas");
+  d.tiendas = d.tiendas.map((t, k) => ({ nombre: v(`t-nombre-${k}`), que: v(`t-que-${k}`) }));
+  d.superReferencia = v("a-ref") || "Mercadona";
+  d.comedor.nombre = v("co-nombre");
+  d.comedor.semanas = d.comedor.semanas.map((w, k) => DIAS.slice(0, 5).map((_, i) => q(`co-${k}-${i}`) ? v(`co-${k}-${i}`) : (w[i] || "")));
+  const rn = Number(v("co-ref")), rl = v("co-ref-lunes");
+  d.comedor.ref = d.comedor.semanas.length && rl ? { lunes: lunesDe(rl), n: rn || 1 } : d.comedor.ref;
+  return d;
+}
+
+// pdf.js se carga solo cuando hace falta leer un PDF (el worker va en el hilo principal)
+let pdfjsPromise = null;
+function cargarScript(src) { return new Promise((ok, ko) => { const el = document.createElement("script"); el.src = src; el.onload = ok; el.onerror = () => ko({ message: "No se pudo cargar el lector de PDF." }); document.head.appendChild(el); }); }
+function cargarPdfJs() {
+  if (!pdfjsPromise) pdfjsPromise = (async () => {
+    const base = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+    await cargarScript(base + "pdf.min.js");
+    await cargarScript(base + "pdf.worker.min.js");
+    return window.pdfjsLib;
+  })();
+  return pdfjsPromise;
+}
+
+async function importarComedor(file) {
+  S.draft = leerAjustes();
+  if (!sample) { S.importMsg = { err: true, msg: "Leer el menú necesita abrir la app en claude.ai." }; render(true); return; }
+  S.importMsg = { busy: true, msg: "Leyendo el menú… tarda un minuto." }; render(true);
+  try {
+    let texto = "", imagenes = [];
+    if (/pdf/i.test(file.type) || /\.pdf$/i.test(file.name)) {
+      const pdfjs = await cargarPdfJs();
+      const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+      const paginas = Math.min(doc.numPages, 4);
+      for (let n = 1; n <= paginas; n++) {
+        const tc = await (await doc.getPage(n)).getTextContent();
+        texto += tc.items.map(it => it.str + (it.hasEOL ? "\n" : " ")).join("") + "\n";
+      }
+      if (texto.replace(/\s/g, "").length < 150) {   // PDF escaneado: se manda como imagen
+        texto = "";
+        for (let n = 1; n <= paginas; n++) {
+          const page = await doc.getPage(n), vp = page.getViewport({ scale: 1.6 });
+          const cv = document.createElement("canvas"); cv.width = vp.width; cv.height = vp.height;
+          await page.render({ canvasContext: cv.getContext("2d"), viewport: vp }).promise;
+          imagenes.push(await new Promise(ok => cv.toBlob(ok, "image/png")));
+        }
+      }
+    } else if (/^image\//.test(file.type)) imagenes = [file];
+    else throw { message: "Sube un PDF o una foto del menú." };
+    let opts = { modelTier: "complex", cache: false };
+    if (imagenes.length) {
+      const lim = await sample.limits().catch(() => ({}));
+      if (!lim.images) throw { message: "No he podido leer texto en ese archivo y las imágenes no están disponibles. Prueba con un PDF con texto o escribe el menú a mano." };
+      opts.images = imagenes.slice(0, lim.images.maxCount || 4);
+    }
+    const r = await sample.json(`Esto es el menú de un comedor escolar${texto ? " (texto sacado de un PDF; si estaba en columnas, el orden puede venir mezclado: guíate por los días y los números de menú)" : " (en la imagen)"}. Normalmente es una rotación de varias semanas de lunes a viernes.
+Devuelve cada semana con sus 5 días en orden. Cada día como "primer plato · segundo plato · postre" (unidos con " · "), sin alérgenos, sin números de menú y sin el pan.
+${texto ? "TEXTO:\n" + texto.slice(0, 40000) : ""}
+Responde SOLO con JSON: {"nombre":"nombre del colegio o comedor si aparece, si no vacío","semanas":[["lunes","martes","miércoles","jueves","viernes"]]}`, opts);
+    const semanas = (r?.semanas || []).filter(Array.isArray).map(w => DIAS.slice(0, 5).map((_, i) => String(w[i] || ""))).filter(w => w.some(Boolean));
+    if (!semanas.length) throw { message: "No he encontrado un menú semanal en ese archivo." };
+    S.draft.comedor.semanas = semanas;
+    if (r.nombre && !S.draft.comedor.nombre) S.draft.comedor.nombre = r.nombre;
+    S.draft.comedor.ref = { lunes: proximoLunes(), n: 1 };
+    S.abierta = 0;
+    S.importMsg = { msg: `Leídas ${semanas.length} semanas. Revísalas, di qué semana toca y pulsa Guardar.` };
+  } catch (e) {
+    S.importMsg = { err: true, msg: mensajeIA(e) };
+  }
+  render(true);
 }
 
 /* =========================================================
@@ -973,13 +1166,22 @@ document.addEventListener("click", async e => {
   if (act === "ver-carrito") { S.verCarrito = !S.verCarrito; render(true); if (S.verCarrito) window.scrollTo({ top: 0, behavior: "smooth" }); }
   if (act === "terminar") { S.verCarrito = false; await setEstado(itemsActuales().filter(i => i.estado === "carrito").map(i => i.id), "comprado"); }
   if (act === "quitar-desp") await store.del("despensa/" + b.dataset.id);
-  if (act === "quitar-chip") {
-    const p = S.config.personas.find(x => x.id === b.dataset.p);
-    p[b.dataset.k].splice(Number(b.dataset.i), 1); await saveConfig(); render();
+  if (act === "ir-ajustes") { S.tab = "ajustes"; render(true); window.scrollTo(0, 0); }
+  if (["add-persona", "quitar-persona", "add-tienda", "quitar-tienda", "add-semana", "quitar-semana", "vaciar-comedor"].includes(act)) {
+    const d = leerAjustes(), k = Number(b.dataset.k);
+    if (act === "add-persona") d.personas.push(NUEVA_PERSONA());
+    if (act === "quitar-persona") d.personas.splice(k, 1);
+    if (act === "add-tienda") d.tiendas.push({ nombre: "", que: "" });
+    if (act === "quitar-tienda") d.tiendas.splice(k, 1);
+    if (act === "add-semana") { d.comedor.semanas.push(["", "", "", "", ""]); S.abierta = d.comedor.semanas.length - 1; }
+    if (act === "quitar-semana") d.comedor.semanas.splice(k, 1);
+    if (act === "vaciar-comedor") { d.comedor.semanas = []; d.comedor.ref = null; }
+    S.draft = d; S.guardado = false; render(true);
   }
+  if (act === "descartar") { S.draft = null; S.importMsg = null; render(true); }
   if (act === "a-despensa") {
     const comprados = S.items.filter(i => i.estado === "comprado");
-    const lugar = i => /congel/i.test(i.seccion) ? "Congelador" : (i.tienda !== "Mercadona" || /l[aá]cteo|huevo|verdura|fruta|charcut|fresco/i.test(i.seccion)) ? "Nevera" : "Despensa";
+    const lugar = i => /congel/i.test(i.seccion) ? "Congelador" : /carn|pesca|pescad|marisc|l[aá]cteo|huevo|verdura|fruta|charcut|fresco/i.test(i.seccion + " " + i.tienda) ? "Nevera" : "Despensa";
     for (const i of comprados) await store.set("despensa/" + uid(), { nombre: i.nombre, cantidad: `${i.cantidad} ${i.unidad}`.trim(), lugar: lugar(i), semana: s.id });
     S.tab = "despensa"; render();
   }
@@ -988,10 +1190,11 @@ document.addEventListener("click", async e => {
 document.addEventListener("change", async e => {
   const t = e.target; const s = semanaActual();
   if (t.id === "sel-semana") { selectSemana(t.value); return; }
+  if (t.id === "co-file" && t.files?.[0]) { importarComedor(t.files[0]); return; }
   if (t.id === "g-lunes" && t.value) { const sel = document.getElementById("g-comedor"); if (sel && sel.value !== "0") sel.value = String(semanaComedor(t.value)); }
   if (t.id === "g-lunes" || t.id === "g-comedor") {
     const n = Number(document.getElementById("g-comedor").value), pv = document.getElementById("g-comedor-prev");
-    if (pv) pv.textContent = n ? COMEDOR[n-1].map((x,i) => DIAS[i].slice(0,2) + ": " + x.split(" · ")[1]).join(" · ") : "El niño come en casa toda la semana.";
+    if (pv) pv.textContent = previewComedor(n);
     return;
   }
   if (t.dataset.step != null && s) {
@@ -1011,8 +1214,8 @@ document.addEventListener("submit", async e => {
   const f = e.target;
   if (f.id === "form-gen") {
     document.activeElement?.blur(); S.genOpen = false; S.genLunes = null;
-    const n = Number(f.querySelector("#g-comedor").value);
-    const dias = n ? COMEDOR[n - 1] : [];
+    const n = hayComedor() ? Number(f.querySelector("#g-comedor")?.value || 0) : 0;
+    const dias = n ? S.config.comedor.semanas[n - 1] : [];
     generarSemana({ lunes: f.querySelector("#g-lunes").value, comedorSemana: n, comedorDias: dias,
       comedor: dias.map((x, i) => DIAS[i] + ": " + x).join("\n"), peticiones: f.querySelector("#g-pet").value.trim() });
   }
@@ -1035,24 +1238,18 @@ document.addEventListener("submit", async e => {
     if (s.ejemplo) { EJ_ITEMS.push(Object.assign({ id: "e" + uid() }, nuevo)); render(true); return; }
     await store.set(`semanas/${s.id}/compra/999-${uid()}`, nuevo);
   }
-  if (f.hasAttribute("data-addchip")) {
-    const inp = f.querySelector("input"); const v = inp.value.trim().toLowerCase(); if (!v) return;
-    const p = S.config.personas.find(x => x.id === f.dataset.p);
-    if (!p[f.dataset.k].includes(v)) p[f.dataset.k].push(v);
-    inp.value = ""; await saveConfig(); render(true);
-  }
   if (f.id === "form-ajustes") {
-    const c = S.config;
-    c.presupuesto = Number(f.querySelector("#a-pres").value) || c.presupuesto;
-    c.comidaLibre = f.querySelector("#a-libre").value;
-    c.diaCompra = f.querySelector("#a-compra").value;
-    c.hidratos = f.querySelector("#a-hid").value.trim();
-    c.tiendas = f.querySelector("#a-tiendas").value.trim();
-    c.cocina = f.querySelector("#a-cocina").value.trim();
-    c.notas = f.querySelector("#a-notas").value.trim();
+    const d = leerAjustes();
+    d.personas = d.personas.map((p, k) => Object.assign(p, { nombre: p.nombre || "Persona " + (k + 1) }));
+    d.tiendas = d.tiendas.filter(t => t.nombre);
+    S.config = normalizar(d); S.draft = null; S.importMsg = null; S.guardado = true;
     await saveConfig(); document.activeElement?.blur(); render(true);
-    const ok = document.getElementById("ajustes-ok"); if (ok) ok.hidden = false;
   }
+});
+
+// Cualquier cambio en ajustes se guarda como borrador para no perderlo si la pantalla se redibuja
+document.addEventListener("input", e => {
+  if (e.target.closest?.("#form-ajustes") && e.target.id !== "co-file") { S.draft = leerAjustes(); S.guardado = false; }
 });
 
 function selectSemana(id) {
@@ -1069,8 +1266,7 @@ function selectSemana(id) {
 function start() {
   try { const t = localStorage.getItem("cd-tab"); if (t) S.tab = t; } catch (e) {}
   store.watchDoc("config/hogar", c => {
-    S.config = Object.assign(structuredClone(DEFAULT_CONFIG), c || {});
-    if (!Array.isArray(S.config.personas)) S.config.personas = structuredClone(DEFAULT_CONFIG.personas);
+    S.config = normalizar(c);
     render();
   });
   store.watchCol("despensa", rows => { S.despensa = rows; render(); });

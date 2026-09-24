@@ -1,6 +1,6 @@
 # Prompt maestro — Planificador de batch cooking familiar
 
-> Versión 0.2 — con las respuestas de la familia. Este es el prompt que usa la aplicación (`app/index.html`) para generar cada semana; lo que aparece entre `{llaves}` se rellena con los ajustes editables de la app.
+> Versión 0.3 — la app es ahora genérica: este documento describe la configuración de la primera familia (Gijón), que vive en la pestaña «Tu casa» de su copia de la app. Versión 0.2 — con las respuestas de la familia. Este es el prompt que usa la aplicación (`app/index.html`) para generar cada semana; lo que aparece entre `{llaves}` se rellena con los ajustes editables de la app.
 
 ---
 
