@@ -113,9 +113,21 @@ section[hidden]{display:none}
 .item.home .n{color:var(--ink-2)}
 .item .r{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
 .item .price{font-variant-numeric:tabular-nums}
+.as-btn{border:0;background:none;padding:0;text-align:left;color:inherit;font:inherit}
+.item .itemtap{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:center;grid-column:1 / 3;min-height:44px}
+.item .itemtap .n,.cart .n{display:block}
+.item .itemtap .q{display:block}
+.cart .item.as-btn{width:100%;grid-template-columns:28px 1fr auto;padding:9px 14px;border-top:1px solid var(--line);min-height:44px}
+.cart .n{display:inline;font-weight:700}
+.tick{width:24px;height:24px;border-radius:6px;border:2px solid var(--line);display:inline-block;position:relative;background:var(--surface)}
+.itemtap:hover .tick{border-color:var(--accent)}
+.tick.on{background:var(--accent);border-color:var(--accent)}
+.tick.on::after{content:"";position:absolute;left:7px;top:3px;width:6px;height:11px;border:solid var(--accent-ink);border-width:0 3px 3px 0;transform:rotate(45deg)}
+.cartbar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(0,0,0,.08);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px))}
+#tab-compra{padding-bottom:72px}
 .linkbtn{border:0;background:none;color:var(--accent);font-size:.8rem;padding:2px 0;text-decoration:underline}
 .spent{display:flex;align-items:center;gap:6px;font-size:.85rem}
-.spent input{width:82px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);text-align:right}
+.spent input[type=number]{width:82px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);text-align:right}
 
 /* Batch */
 .step{display:grid;grid-template-columns:28px 64px 1fr;gap:10px;padding:10px 14px;border-top:1px solid var(--line);align-items:start}
@@ -368,9 +380,22 @@ function semanaActual() {
   const s = S.semanas.find(x => x.id === S.semanaId);
   return s ? Object.assign({ id: s.id }, s.data) : null;
 }
+EJEMPLO.gastos = {}; EJEMPLO.batchHecho = [];
+const EJ_ITEMS = EJEMPLO.compra.map((it, i) => Object.assign({ id: "e" + i, estado: "pendiente", orden: i }, it));
 function itemsActuales() {
-  if (S.semanaId === "ejemplo") return EJEMPLO.compra.map((it, i) => Object.assign({ id: "e" + i, estado: "pendiente" }, it));
+  if (S.semanaId === "ejemplo") return EJ_ITEMS;
   return S.items;
+}
+// Estados de un artículo: pendiente → carrito → comprado (o "casa" si ya lo teníamos)
+async function setEstado(ids, estado) {
+  const s = semanaActual(); if (!s) return;
+  if (s.ejemplo) { EJ_ITEMS.forEach(i => { if (ids.includes(i.id)) i.estado = estado; }); render(true); return; }
+  S.items.forEach(i => { if (ids.includes(i.id)) i.estado = estado; }); render(true); // respuesta inmediata
+  await Promise.all(ids.map(id => store.update(`semanas/${s.id}/compra/${id}`, { estado })));
+}
+async function updateSemana(s, data) {
+  if (s.ejemplo) { Object.assign(EJEMPLO, data); render(true); return; }
+  await store.update("semanas/" + s.id, data);
 }
 
 /* =========================================================
@@ -547,6 +572,39 @@ async function cambiarPlato(diaIdx, slot, motivo) {
   S.swapping = null; render();
 }
 
+async function despensaPorVoz(texto) {
+  S.voz = { busy: true, texto }; render(true);
+  const actual = S.despensa.map(d => ({ id: d.id, nombre: d.data.nombre, cantidad: d.data.cantidad, lugar: d.data.lugar }));
+  let r;
+  try {
+    if (sample) {
+      r = await sample.json(`Gestionas la despensa de una familia. Esto es lo que hay apuntado ahora (JSON): ${JSON.stringify(actual)}
+
+Alguien ha dictado por voz (puede tener errores de transcripción, interprétalos con sentido común):
+"""${texto}"""
+
+Traduce lo dictado en cambios. Si dice que algo "se acabó", "no queda" o "ya no hay", quítalo. Si da una nueva cantidad de algo que ya está, cámbiala. Lo nuevo, añádelo. Lugar: "Nevera", "Congelador" o "Despensa" (si no lo dice, deduce el lugar lógico: frescos y lácteos en Nevera, congelados en Congelador, resto en Despensa). Nombres cortos en español con mayúscula inicial, cantidades breves ("6", "medio paquete", "2 bolsas").
+Responde SOLO con JSON: {"anadir":[{"nombre":"...","cantidad":"...","lugar":"Nevera|Congelador|Despensa"}],"cambiar":[{"id":"...","cantidad":"..."}],"quitar":["id",...]}`, { modelTier: "quick", cache: false });
+    } else {
+      // Sin IA: cada trozo separado por comas, "y" o saltos de línea es un producto de la despensa
+      r = { anadir: texto.split(/,|\n|\sy\s/).map(x => x.trim()).filter(Boolean).map(n => ({ nombre: n.charAt(0).toUpperCase() + n.slice(1), cantidad: "", lugar: "Despensa" })), cambiar: [], quitar: [] };
+    }
+    const lugares = ["Nevera", "Congelador", "Despensa"];
+    const ids = new Set(actual.map(a => a.id));
+    const anadir = (r.anadir || []).filter(a => a && a.nombre);
+    const cambiar = (r.cambiar || []).filter(c => c && ids.has(c.id));
+    const quitar = (r.quitar || []).filter(id => ids.has(id));
+    for (const a of anadir) await store.set("despensa/" + uid(), { nombre: String(a.nombre), cantidad: String(a.cantidad || ""), lugar: lugares.includes(a.lugar) ? a.lugar : "Despensa" });
+    for (const c of cambiar) await store.update("despensa/" + c.id, { cantidad: String(c.cantidad || "") });
+    for (const id of quitar) await store.del("despensa/" + id);
+    const partes = [anadir.length && `${anadir.length} añadidos`, cambiar.length && `${cambiar.length} cambiados`, quitar.length && `${quitar.length} quitados`].filter(Boolean);
+    S.voz = partes.length ? { msg: "Hecho: " + partes.join(", ") + "." } : { err: true, msg: "No he encontrado nada que cambiar. Prueba a decirlo de otra forma.", texto };
+  } catch (e) {
+    S.voz = { err: true, msg: mensajeIA(e), texto };
+  }
+  render(true);
+}
+
 function mensajeIA(e) {
   const c = e?.code;
   if (c === "not_granted") return "No has dado permiso para usar Claude en esta página. Recarga y acepta el aviso para generar menús.";
@@ -668,35 +726,50 @@ function renderCompra() {
   const est = items.filter(i => i.estado !== "casa").reduce((a, i) => a + (Number(i.precio) || 0), 0);
   const gastos = s.gastos || {};
   const real = SHOPS.reduce((a, sh) => a + (Number(gastos[sh.id]) || 0), 0);
-  const pend = items.filter(i => i.estado === "pendiente").length;
-  let h = `<div class="row between"><div><span class="label">Compra del ${esc(S.config.diaCompra.toLowerCase())}</span><h2>${pend ? pend + " cosas por comprar" : "Todo comprado"}</h2></div>${selectorSemana()}</div>`;
-  if (s.ejemplo) h += `<div class="banner small"><span>Lista de ejemplo: las casillas no se guardan.</span></div>`;
+  const pendientes = items.filter(i => i.estado === "pendiente");
+  const carrito = items.filter(i => i.estado === "carrito");
+  const comprados = items.filter(i => i.estado === "comprado");
+  const enCasa = items.filter(i => i.estado === "casa");
+  const suma = arr => arr.reduce((a, i) => a + (Number(i.precio) || 0), 0);
+
+  let h = `<div class="row between"><div><span class="label">Compra del ${esc(S.config.diaCompra.toLowerCase())}</span><h2>${pendientes.length ? pendientes.length + " cosas por comprar" : carrito.length ? "Todo en el carrito" : "Compra terminada"}</h2></div>${selectorSemana()}</div>`;
+  if (s.ejemplo) h += `<div class="banner small"><span>Lista de ejemplo para probar: toca los productos para echarlos al carrito. No se guarda.</span></div>`;
   if (s.compraDesfasada) h += `<div class="banner warn"><span>El menú ha cambiado desde que se hizo esta lista.</span><button class="btn sm primary" data-act="regen-compra" ${sample ? "" : "disabled"}>Rehacer lista</button></div>`;
   h += `<div class="summary">
-    <div class="stat"><span class="label">Estimado</span><div class="v num">${eur(est)}</div><div class="meter ${est > pres ? "over" : ""}"><i style="width:${Math.min(100, est / pres * 100)}%"></i></div><span class="small muted">Objetivo ${eur(pres)}</span></div>
+    <div class="stat"><span class="label">Falta por comprar</span><div class="v num">${eur(suma(pendientes))}</div><div class="meter ${est > pres ? "over" : ""}"><i style="width:${Math.min(100, est / pres * 100)}%"></i></div><span class="small muted">Semana ≈ ${eur(est)} · objetivo ${eur(pres)}</span></div>
     <div class="stat"><span class="label">Gastado de verdad</span><div class="v num">${real ? eur(real) : "–"}</div><span class="small muted">${real ? (real <= pres ? "Dentro del objetivo" : "Te pasas " + eur(real - pres)) : "Apunta el ticket de cada tienda"}</span></div>
   </div>`;
+
+  if (carrito.length && S.verCarrito) {
+    h += `<div class="shop cart"><div class="shop-h" style="--c:var(--accent)"><h3>En el carrito <span class="small muted num">${carrito.length}</span></h3><span class="small muted">Toca uno para devolverlo a la lista</span></div>
+      ${carrito.map(i => `<button class="item as-btn" data-act="estado" data-item="${esc(i.id)}" data-to="pendiente"><span class="tick on" aria-hidden="true"></span><span><span class="n">${esc(i.nombre)}</span><span class="q"> · ${esc(i.tienda)}</span></span><span class="price small">${eur(i.precio)}</span></button>`).join("")}</div>`;
+  }
+
   SHOPS.forEach(sh => {
     const its = items.filter(i => i.tienda === sh.id);
     if (!its.length) return;
-    const sub = its.filter(i => i.estado !== "casa").reduce((a, i) => a + (Number(i.precio) || 0), 0);
-    const done = its.filter(i => i.estado !== "pendiente").length;
-    const secs = [...new Set(its.map(i => i.seccion || "Otros"))];
-    h += `<div class="shop" style="--c:${sh.c}"><div class="shop-h"><h3>${sh.id} <span class="small muted num">${done}/${its.length}</span></h3>
-      <div class="row"><span class="small muted num">≈ ${eur(sub)}</span>
-      <label class="spent">Ticket <input type="number" inputmode="decimal" step="0.01" min="0" id="gasto-${sh.id}" data-shop="${sh.id}" value="${gastos[sh.id] ?? ""}" ${s.ejemplo ? "disabled" : ""}> €</label></div></div>`;
+    const pend = its.filter(i => i.estado === "pendiente");
+    const secs = [...new Set(pend.map(i => i.seccion || "Otros"))];
+    h += `<div class="shop" style="--c:${sh.c}"><div class="shop-h"><h3>${sh.id} <span class="small muted num">${pend.length ? pend.length + " por comprar" : "listo"}</span></h3>
+      <div class="row"><span class="small muted num">≈ ${eur(suma(pend))}</span>
+      <label class="spent">Ticket <input type="number" inputmode="decimal" step="0.01" min="0" id="gasto-${sh.id}" data-shop="${sh.id}" value="${gastos[sh.id] ?? ""}"> €</label></div></div>`;
     secs.forEach(sec => {
       if (secs.length > 1 || sh.id === "Mercadona") h += `<div class="sec label">${esc(sec)}</div>`;
-      its.filter(i => (i.seccion || "Otros") === sec).forEach(i => {
-        h += `<div class="item ${i.estado === "comprado" ? "done" : ""} ${i.estado === "casa" ? "home" : ""}">
-          <input type="checkbox" id="it-${esc(i.id)}" data-item="${esc(i.id)}" ${i.estado !== "pendiente" ? "checked" : ""} ${s.ejemplo ? "disabled" : ""} aria-label="${esc(i.nombre)}">
-          <label for="it-${esc(i.id)}"><div class="n">${esc(i.nombre)}</div><div class="q">${esc(i.cantidad)} ${esc(i.unidad)}${i.para ? " · " + esc(i.para) : ""}${i.estado === "casa" ? " · ya lo teníamos" : ""}</div></label>
-          <div class="r"><span class="price small">${eur(i.precio)}</span>${s.ejemplo || i.estado !== "pendiente" ? "" : `<button class="linkbtn" data-act="casa" data-item="${esc(i.id)}">Ya lo tengo</button>`}</div></div>`;
+      pend.filter(i => (i.seccion || "Otros") === sec).forEach(i => {
+        h += `<div class="item"><button class="as-btn itemtap" data-act="estado" data-item="${esc(i.id)}" data-to="carrito" aria-label="Al carrito: ${esc(i.nombre)}"><span class="tick" aria-hidden="true"></span>
+          <span><span class="n">${esc(i.nombre)}</span><span class="q">${esc(i.cantidad)} ${esc(i.unidad)}${i.para ? " · " + esc(i.para) : ""}</span></span></button>
+          <div class="r"><span class="price small">${eur(i.precio)}</span><button class="linkbtn" data-act="estado" data-item="${esc(i.id)}" data-to="casa">Ya lo tengo</button></div></div>`;
       });
     });
     h += `</div>`;
   });
-  if (!s.ejemplo) h += `<form id="form-add-item" class="panel stack"><h3>Añadir algo a la lista</h3>
+
+  if (comprados.length || enCasa.length) {
+    h += `<details class="panel"><summary><b>Ya resuelto</b> <span class="muted small">${comprados.length} comprados · ${enCasa.length} ya estaban en casa</span></summary><div style="margin-top:8px">
+      ${[...comprados, ...enCasa].map(i => `<div class="pantry-item"><span>${esc(i.nombre)} <span class="small muted">· ${i.estado === "casa" ? "en casa" : esc(i.tienda)}</span></span><span></span><button class="linkbtn" data-act="estado" data-item="${esc(i.id)}" data-to="pendiente">Volver a la lista</button></div>`).join("")}</div></details>`;
+  }
+
+  h += `<form id="form-add-item" class="panel stack"><h3>Añadir algo a la lista</h3>
     <div class="grid2"><div class="field"><label for="ai-nombre">Producto</label><input type="text" id="ai-nombre" required placeholder="Papel de cocina"></div>
     <div class="field"><label for="ai-tienda">Tienda</label><select id="ai-tienda">${SHOPS.map(x => `<option ${x.id === "Mercadona" ? "selected" : ""}>${x.id}</option>`).join("")}</select></div>
     <div class="field"><label for="ai-cant">Cantidad</label><input type="text" id="ai-cant" placeholder="1 paquete"></div>
@@ -704,11 +777,11 @@ function renderCompra() {
     <div><button class="btn primary" type="submit">Añadir</button></div></form>`;
   const cons = s.consejos || [];
   if (cons.length) h += `<div class="panel stack"><h3>Ideas para gastar menos</h3>${cons.map(c => `<p>${esc(c)}</p>`).join("")}</div>`;
-  if (!s.ejemplo) {
-    const comprados = items.filter(i => i.estado === "comprado").length;
-    if (comprados) h += `<div class="row"><button class="btn" data-act="a-despensa">Pasar lo comprado a la despensa</button><span class="small muted">Para que la próxima semana no se vuelva a comprar lo que sobre.</span></div>`;
-  }
+  if (!s.ejemplo && comprados.length) h += `<div class="row"><button class="btn" data-act="a-despensa">Pasar lo comprado a la despensa</button><span class="small muted">Para que la próxima semana no se vuelva a comprar lo que sobre.</span></div>`;
   h += historial();
+
+  if (carrito.length) h += `<div class="cartbar"><div class="wrap row between"><button class="as-btn" data-act="ver-carrito"><b class="num">${carrito.length}</b> en el carrito · <span class="num">${eur(suma(carrito))}</span> <span class="small" style="text-decoration:underline">${S.verCarrito ? "ocultar" : "ver"}</span></button>
+    <button class="btn primary" data-act="terminar">Terminar compra</button></div></div>`;
   return h;
 }
 
@@ -733,7 +806,7 @@ function renderBatch() {
   h += `<div class="summary"><div class="stat"><span class="label">Hecho</span><div class="v num">${hechos.size}/${pasos.length}</div><div class="meter"><i style="width:${pasos.length ? hechos.size / pasos.length * 100 : 0}%"></i></div></div>
     <div class="stat"><span class="label">Cubre</span><div class="v num">${pctBatch(s.menu)}%</div><span class="small muted">de las comidas</span></div></div>`;
   h += `<div class="panel" style="padding:0">${pasos.map((p, i) => `<div class="step ${hechos.has(i) ? "done" : ""}">
-      <input type="checkbox" id="st-${i}" data-step="${i}" ${hechos.has(i) ? "checked" : ""} ${s.ejemplo ? "disabled" : ""} aria-label="Paso ${i + 1}">
+      <input type="checkbox" id="st-${i}" data-step="${i}" ${hechos.has(i) ? "checked" : ""} aria-label="Paso ${i + 1}">
       <span class="t">${esc(p.inicio)}</span>
       <label for="st-${i}" class="body"><div>${esc(p.tarea)}</div><div class="eq">${(p.equipo || []).map(e => `<span>${esc(e)}</span>`).join("")}${p.duracionMin ? `<span>${p.duracionMin} min</span>` : ""}</div></label></div>`).join("")}</div>`;
   if ((b.conservacion || []).length) h += `<div class="panel stack"><h3>Nevera y congelador</h3><div class="tablewrap"><table><thead><tr><th>Plato</th><th>Dónde</th><th>Comer como tarde</th><th>Descongelar</th></tr></thead><tbody>
@@ -746,11 +819,19 @@ function renderBatch() {
 function renderDespensa() {
   const lugares = ["Despensa", "Nevera", "Congelador"];
   let h = `<div><span class="label">Lo que ya hay en casa</span><h2>Despensa</h2><p class="muted small">La IA lo descuenta al hacer la lista de la compra.</p></div>
-    <form id="form-desp" class="panel stack"><div class="grid2">
+    <form id="form-voz" class="panel stack">
+      <h3>Díctalo</h3>
+      <div class="field"><label for="d-voz">Qué hay en casa y qué se ha acabado</label>
+        <textarea id="d-voz" placeholder="En la nevera hay seis huevos y media coliflor, en el congelador dos pechugas de pollo y una bolsa de guisantes. Se acabó el arroz integral." ${S.voz?.busy ? "disabled" : ""}>${esc(S.voz?.texto || "")}</textarea>
+        <span class="hint">Toca el cuadro y pulsa el micrófono del teclado del móvil para hablar. Luego pulsa Actualizar.</span></div>
+      <div class="row"><button class="btn primary" type="submit" ${S.voz?.busy ? "disabled" : ""}>${S.voz?.busy ? '<span class="spin">◌</span> Entendiendo…' : "Actualizar despensa"}</button>
+      ${S.voz?.msg ? `<span class="small ${S.voz.err ? "" : "muted"}" style="${S.voz.err ? "color:var(--apple)" : ""}">${esc(S.voz.msg)}</span>` : ""}</div>
+    </form>
+    <details class="panel"><summary><b>Añadir a mano</b></summary><form id="form-desp" class="stack" style="margin-top:10px"><div class="grid2">
       <div class="field"><label for="d-nombre">Producto</label><input type="text" id="d-nombre" required placeholder="Arroz integral"></div>
       <div class="field"><label for="d-cant">Cantidad</label><input type="text" id="d-cant" placeholder="medio paquete"></div>
       <div class="field"><label for="d-lugar">Dónde</label><select id="d-lugar">${lugares.map(l => `<option>${l}</option>`).join("")}</select></div>
-      <div class="field" style="justify-content:flex-end"><button class="btn primary" type="submit">Añadir</button></div></div></form>`;
+      <div class="field" style="justify-content:flex-end"><button class="btn primary" type="submit">Añadir</button></div></div></form></details>`;
   lugares.forEach(l => {
     const its = S.despensa.filter(d => d.data.lugar === l).sort((a, b) => a.data.nombre.localeCompare(b.data.nombre));
     h += `<div class="panel"><h3>${l} <span class="small muted num">${its.length}</span></h3>
@@ -798,7 +879,9 @@ document.addEventListener("click", async e => {
   if (act === "cerrar-gen") { S.gen = null; render(); }
   if (act === "swap") cambiarPlato(Number(b.dataset.i), b.dataset.slot, "");
   if (act === "regen-compra") regenerarCompra();
-  if (act === "casa") await store.update(`semanas/${s.id}/compra/${b.dataset.item}`, { estado: "casa" });
+  if (act === "estado") await setEstado([b.dataset.item], b.dataset.to);
+  if (act === "ver-carrito") { S.verCarrito = !S.verCarrito; render(true); if (S.verCarrito) window.scrollTo({ top: 0, behavior: "smooth" }); }
+  if (act === "terminar") { S.verCarrito = false; await setEstado(itemsActuales().filter(i => i.estado === "carrito").map(i => i.id), "comprado"); }
   if (act === "quitar-desp") await store.del("despensa/" + b.dataset.id);
   if (act === "quitar-chip") {
     const p = S.config.personas.find(x => x.id === b.dataset.p);
@@ -821,19 +904,15 @@ document.addEventListener("change", async e => {
     if (pv) pv.textContent = n ? COMEDOR[n-1].map((x,i) => DIAS[i].slice(0,2) + ": " + x.split(" · ")[1]).join(" · ") : "El niño come en casa toda la semana.";
     return;
   }
-  if (t.dataset.item && t.type === "checkbox" && s && !s.ejemplo) {
-    const it = S.items.find(i => i.id === t.dataset.item);
-    await store.update(`semanas/${s.id}/compra/${t.dataset.item}`, { estado: t.checked ? (it?.estado === "casa" ? "casa" : "comprado") : "pendiente" });
-  }
-  if (t.dataset.step != null && s && !s.ejemplo) {
+  if (t.dataset.step != null && s) {
     const set = new Set(s.batchHecho || []); const i = Number(t.dataset.step);
     t.checked ? set.add(i) : set.delete(i);
-    await store.update("semanas/" + s.id, { batchHecho: [...set] });
+    await updateSemana(s, { batchHecho: [...set] });
   }
-  if (t.dataset.shop && s && !s.ejemplo) {
+  if (t.dataset.shop && s) {
     const gastos = Object.assign({}, s.gastos || {}); const v = parseFloat(t.value);
     if (isNaN(v)) delete gastos[t.dataset.shop]; else gastos[t.dataset.shop] = Math.round(v * 100) / 100;
-    await store.update("semanas/" + s.id, { gastos });
+    await updateSemana(s, { gastos });
   }
 });
 
@@ -847,6 +926,12 @@ document.addEventListener("submit", async e => {
     generarSemana({ lunes: f.querySelector("#g-lunes").value, comedorSemana: n, comedorDias: dias,
       comedor: dias.map((x, i) => DIAS[i] + ": " + x).join("\n"), peticiones: f.querySelector("#g-pet").value.trim() });
   }
+  if (f.id === "form-voz") {
+    const texto = f.querySelector("#d-voz").value.trim(); if (!texto) return;
+    document.activeElement?.blur();
+    await despensaPorVoz(texto);
+    return;
+  }
   if (f.id === "form-desp") {
     const nombre = f.querySelector("#d-nombre").value.trim(); if (!nombre) return;
     await store.set("despensa/" + uid(), { nombre, cantidad: f.querySelector("#d-cant").value.trim(), lugar: f.querySelector("#d-lugar").value });
@@ -857,6 +942,7 @@ document.addEventListener("submit", async e => {
     const s = semanaActual(); const nombre = f.querySelector("#ai-nombre").value.trim(); if (!nombre || !s) return;
     const nuevo = { nombre, cantidad: f.querySelector("#ai-cant").value.trim(), unidad: "", tienda: f.querySelector("#ai-tienda").value, seccion: "Añadido a mano", precio: parseFloat(f.querySelector("#ai-precio").value) || 0, para: "", estado: "pendiente", orden: 999 };
     f.reset(); document.activeElement?.blur();
+    if (s.ejemplo) { EJ_ITEMS.push(Object.assign({ id: "e" + uid() }, nuevo)); render(true); return; }
     await store.set(`semanas/${s.id}/compra/999-${uid()}`, nuevo);
   }
   if (f.hasAttribute("data-addchip")) {
