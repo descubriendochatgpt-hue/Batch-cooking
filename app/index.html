@@ -348,6 +348,7 @@ const local = (() => {
 })();
 
 const store = {
+  async get(path) { if (db) { const d = await db.doc(path).get(); return d.exists ? d.data() : null; } return local.get(path) || null; },
   async set(path, v) { if (db) return db.doc(path).set(v); local.set(path, v); },
   async update(path, v) { if (db) return db.doc(path).update(v); local.update(path, v); },
   async del(path) { if (db) return db.doc(path).delete(); local.del(path); },
@@ -551,6 +552,18 @@ async function generarSemana(form) {
   if (!sample) return;
   const lunes = form.lunes;
   const id = lunes;
+  // Una semana ya generada no se pisa: hay que desbloquearla a propósito
+  const existente = await store.get("semanas/" + id).catch(() => null);
+  if (existente) {
+    const generandoAhora = existente.estado === "generando" && Date.now() - new Date(existente.generandoDesde).getTime() < 10 * 60e3;
+    if (existente.menu || generandoAhora) {
+      S.error = generandoAhora
+        ? `La semana del ${fechaCorta(id)} se está generando ahora mismo en otro móvil. Espera a que termine.`
+        : `La semana del ${fechaCorta(id)} ya tiene plan y está bloqueada para que no se pierda. Si de verdad queréis rehacerla, usa «Rehacer esta semana» al final del menú.`;
+      selectSemana(id); return;
+    }
+  }
+  await store.set("semanas/" + id, { lunes, estado: "generando", generandoDesde: new Date().toISOString() });
   const previos = S.semanas.filter(s => s.id !== id).sort((a, b) => b.id.localeCompare(a.id)).slice(0, 2)
     .flatMap(s => (s.data.menu?.dias || []).flatMap(d => [d.comida?.plato, d.cena?.plato])).filter(p => p && p !== "Comida libre");
   S.gen = { paso: 0, pasos: ["Menú de la semana", "Lista de la compra por tiendas", "Plan del domingo"], error: null };
@@ -559,7 +572,7 @@ async function generarSemana(form) {
   try {
     const menu = await sample.json(promptMenu(lunes, form.comedor, form.peticiones, previos), { modelTier: "complex" });
     if (!menu || !Array.isArray(menu.dias) || menu.dias.length !== 7) throw { message: "El menú llegó incompleto. Vuelve a intentarlo." };
-    await store.set("semanas/" + id, { lunes, menu, comedor: form.comedor || "", comedorSemana: form.comedorSemana, comedorDias: form.comedorDias || [], peticiones: form.peticiones || "", creada: new Date().toISOString(), gastos: {}, batchHecho: [], compraDesfasada: false });
+    await store.set("semanas/" + id, { lunes, menu, comedor: form.comedor || "", comedorSemana: form.comedorSemana, comedorDias: form.comedorDias || [], peticiones: form.peticiones || "", creada: new Date().toISOString(), estado: "lista", bloqueada: true, gastos: {}, batchHecho: [], compraDesfasada: false });
     S.semanaId = id; S.gen.paso = 1; render();
 
     await generarCompra(id, menu);
@@ -569,8 +582,21 @@ async function generarSemana(form) {
     await store.update("semanas/" + id, { batch });
     S.gen = null; S.tab = "semana"; render();
   } catch (e) {
+    // si ni siquiera llegó el menú, quitar la semana a medio crear
+    const doc = await store.get("semanas/" + id).catch(() => null);
+    if (doc && !doc.menu) await store.del("semanas/" + id).catch(() => {});
+    else if (doc) await store.update("semanas/" + id, { estado: "lista" }).catch(() => {});
     S.gen.error = mensajeIA(e); render();
   }
+}
+
+async function rehacerSemana() {
+  const s = semanaActual(); if (!s || s.ejemplo) return;
+  S.confirm = null;
+  for (const i of S.items) await store.del(`semanas/${s.id}/compra/${i.id}`);
+  await store.del("semanas/" + s.id);
+  S.genOpen = true; S.genLunes = s.id; S.tab = "semana"; render(true);
+  window.scrollTo(0, 0);
 }
 
 async function generarCompra(id, menu) {
@@ -587,11 +613,13 @@ async function generarCompra(id, menu) {
     precio: Number(it.precio) || 0, para: String(it.para || ""), estado: "pendiente", orden: i
   }));
   await Promise.all(writes);
-  await store.update("semanas/" + id, { consejos: Array.isArray(res.consejos) ? res.consejos : [], compraDesfasada: false });
+  await store.update("semanas/" + id, { consejos: Array.isArray(res.consejos) ? res.consejos : [], compraDesfasada: false, estado: "lista" });
 }
 
-async function regenerarCompra() {
+async function regenerarCompra(confirmado) {
   const s = semanaActual(); if (!s || s.ejemplo || !sample) return;
+  if (!confirmado && S.items.some(i => i.estado !== "pendiente")) { S.confirm = "compra"; render(true); return; }
+  S.confirm = null;
   S.gen = { paso: 1, pasos: ["Menú de la semana", "Lista de la compra por tiendas", "Plan del domingo"], error: null, soloCompra: true }; render();
   try {
     await generarCompra(s.id, s.menu);
@@ -698,7 +726,9 @@ function panelGenerar() {
       <ul>${g.pasos.map((p, i) => `<li class="${i < g.paso ? "done" : i === g.paso && !g.error ? "now" : ""}">${i < g.paso ? "✓" : i === g.paso && !g.error ? '<span class="spin">◌</span>' : "·"} ${esc(p)}</li>`).join("")}</ul>
       ${g.error ? `<p class="muted">${esc(g.error)}</p><div class="row"><button class="btn" data-act="cerrar-gen">Cerrar</button></div>` : `<p class="small muted">Tarda uno o dos minutos. Puedes seguir usando la app.</p>`}</div>`;
   }
-  const lunes = proximoLunes();
+  // por defecto, el primer lunes que todavía no tiene plan
+  let lunes = S.genLunes || proximoLunes();
+  while (!S.genLunes && S.semanas.some(x => x.id === lunes)) { const d = new Date(lunes + "T12:00:00"); d.setDate(d.getDate() + 7); lunes = d.toISOString().slice(0, 10); }
   return `<details class="panel" id="gen-panel" ${(S.genOpen ?? !S.semanas.length) ? "open" : ""}>
     <summary><h2 style="display:inline">Planificar una semana nueva</h2></summary>
     <form id="form-gen" class="stack" style="margin-top:12px">
@@ -721,7 +751,8 @@ function renderSemana() {
   h += panelGenerar();
   if (!s) return h;
   if (s.ejemplo) h += `<div class="banner small"><span>Esto es una semana de ejemplo para que veas cómo funciona. Genera la vuestra arriba.</span></div>`;
-  if (s.compraDesfasada) h += `<div class="banner warn"><span>Has cambiado platos: la lista de la compra y el plan del domingo ya no coinciden.</span><button class="btn sm primary" data-act="regen-compra" ${sample ? "" : "disabled"}>Rehacer compra y plan</button></div>`;
+  if (!s.ejemplo && !s.menu) return h + `<div class="banner"><span><span class="spin">◌</span> Esta semana se está generando${S.gen ? "" : " en otro móvil"}. Aparecerá aquí en uno o dos minutos.</span></div>`;
+  if (s.compraDesfasada) h += bannerDesfase("Has cambiado platos: la lista de la compra y el plan del domingo ya no coinciden.", "Rehacer compra y plan");
 
   const items = itemsActuales().filter(i => i.estado !== "casa");
   const est = items.reduce((a, i) => a + (Number(i.precio) || 0), 0);
@@ -742,7 +773,19 @@ function renderSemana() {
       <div class="meals">${renderMeal(d.comida, "Comida", i, "comida", s)}${renderMeal(d.cena, "Cena", i, "cena", s)}</div>
       <div class="kidline">${s.comedorDias?.[i] ? `<span><b>Cole (menú ${ (s.comedorSemana-1)*5 + i + 1 }):</b> ${esc(s.comedorDias[i])}</span>` : ""}<span><b>Desayuno niño:</b> ${esc(d.desayunoNino)}</span><span><b>Merienda:</b> ${esc(d.meriendaNino)}</span></div></article>`;
   });
+  h += panelRehacer(s);
   return h;
+}
+function bannerDesfase(texto, boton) {
+  if (S.confirm === "compra") return `<div class="banner err"><span>Ya habéis marcado cosas de esta lista. Si la rehacéis, se pierde lo marcado y sale una lista nueva.</span><div class="row"><button class="btn sm" data-act="confirm">Cancelar</button><button class="btn sm primary" data-act="regen-compra" data-ok="1">Sí, rehacer la lista</button></div></div>`;
+  return `<div class="banner warn"><span>${texto}</span><button class="btn sm primary" data-act="regen-compra" ${sample ? "" : "disabled"}>${boton}</button></div>`;
+}
+function panelRehacer(s) {
+  if (s.ejemplo || !s.menu) return "";
+  if (S.confirm === "semana") return `<div class="banner err"><span><b>¿Borrar el plan de la semana del ${esc(fechaCorta(s.id))}?</b> Se borran el menú, la lista de la compra (con lo marcado) y el plan del domingo. No se puede deshacer.</span>
+    <div class="row"><button class="btn sm" data-act="confirm">No, dejarlo como está</button><button class="btn sm primary" data-act="rehacer" style="background:var(--apple);border-color:var(--apple)">Sí, borrar y rehacer</button></div></div>`;
+  return `<div class="row between small muted"><span>Plan bloqueado${s.creada ? " · generado el " + esc(new Date(s.creada).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })) : ""}. Nadie puede generar otro encima por error.</span>
+    <button class="btn ghost sm" data-act="confirm" data-que="semana">Rehacer esta semana</button></div>`;
 }
 function pctBatch(menu) {
   const all = (menu?.dias || []).flatMap(d => [d.comida, d.cena]).filter(m => m && !m.libre);
@@ -777,7 +820,7 @@ function renderCompra() {
 
   let h = `<div class="row between"><div><span class="label">Compra del ${esc(S.config.diaCompra.toLowerCase())}</span><h2>${pendientes.length ? pendientes.length + " cosas por comprar" : carrito.length ? "Todo en el carrito" : "Compra terminada"}</h2></div>${selectorSemana()}</div>`;
   if (s.ejemplo) h += `<div class="banner small"><span>Lista de ejemplo para probar: toca los productos para echarlos al carrito. No se guarda.</span></div>`;
-  if (s.compraDesfasada) h += `<div class="banner warn"><span>El menú ha cambiado desde que se hizo esta lista.</span><button class="btn sm primary" data-act="regen-compra" ${sample ? "" : "disabled"}>Rehacer lista</button></div>`;
+  if (s.compraDesfasada) h += bannerDesfase("El menú ha cambiado desde que se hizo esta lista.", "Rehacer lista");
   const deMerca = items.filter(i => i.fuente === "mercadona").length;
   h += `<p class="small muted">${S.precios?.items?.length ? `Precios de referencia de Mercadona Gijón, actualizados el ${esc(S.precios.actualizado)}. ${deMerca} de ${items.length} artículos con precio de catálogo (M); el resto, estimado (≈).` : "Precios estimados con referencia Mercadona (≈). Todavía no está cargado el catálogo real de Mercadona."}</p>`;
   h += `<div class="summary">
@@ -923,7 +966,9 @@ document.addEventListener("click", async e => {
   if (act === "cerrar-error") { S.error = null; render(); }
   if (act === "cerrar-gen") { S.gen = null; render(); }
   if (act === "swap") cambiarPlato(Number(b.dataset.i), b.dataset.slot, "");
-  if (act === "regen-compra") regenerarCompra();
+  if (act === "regen-compra") regenerarCompra(b.dataset.ok === "1");
+  if (act === "confirm") { S.confirm = b.dataset.que || null; render(true); }
+  if (act === "rehacer") rehacerSemana();
   if (act === "estado") await setEstado([b.dataset.item], b.dataset.to);
   if (act === "ver-carrito") { S.verCarrito = !S.verCarrito; render(true); if (S.verCarrito) window.scrollTo({ top: 0, behavior: "smooth" }); }
   if (act === "terminar") { S.verCarrito = false; await setEstado(itemsActuales().filter(i => i.estado === "carrito").map(i => i.id), "comprado"); }
@@ -965,7 +1010,7 @@ document.addEventListener("submit", async e => {
   e.preventDefault();
   const f = e.target;
   if (f.id === "form-gen") {
-    document.activeElement?.blur(); S.genOpen = false;
+    document.activeElement?.blur(); S.genOpen = false; S.genLunes = null;
     const n = Number(f.querySelector("#g-comedor").value);
     const dias = n ? COMEDOR[n - 1] : [];
     generarSemana({ lunes: f.querySelector("#g-lunes").value, comedorSemana: n, comedorDias: dias,
