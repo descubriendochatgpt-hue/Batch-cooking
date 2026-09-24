@@ -1,0 +1,919 @@
+<title>La Cocina del Domingo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+:root{
+  --bg:#F3F5F1; --surface:#FFFFFF; --surface-2:#E9EEE7; --ink:#18241E; --ink-2:#4B5A52; --line:#D5DDD6;
+  --accent:#2E6A4C; --accent-ink:#FFFFFF; --accent-soft:#DCEBE1;
+  --apple:#B8322C; --warn:#A8660B; --ok:#2E7D4F;
+  --s-carne:#A63D32; --s-pesca:#27667F; --s-fruta:#B7791A; --s-merca:#3C8049;
+  --radius:10px;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#111814; --surface:#18221C; --surface-2:#1F2B24; --ink:#E6EEE8; --ink-2:#A3B3A9; --line:#2D3B33;
+    --accent:#6FBF93; --accent-ink:#0E1A13; --accent-soft:#1E3529;
+    --apple:#EE7B72; --warn:#E3A948; --ok:#76C996;
+    --s-carne:#E08476; --s-pesca:#6DB5D2; --s-fruta:#E3B25A; --s-merca:#7CC58A;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#111814; --surface:#18221C; --surface-2:#1F2B24; --ink:#E6EEE8; --ink-2:#A3B3A9; --line:#2D3B33;
+  --accent:#6FBF93; --accent-ink:#0E1A13; --accent-soft:#1E3529;
+  --apple:#EE7B72; --warn:#E3A948; --ok:#76C996;
+  --s-carne:#E08476; --s-pesca:#6DB5D2; --s-fruta:#E3B25A; --s-merca:#7CC58A;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;padding-inline:16px;padding-block:0 48px}
+.wrap{max-width:860px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:1.65rem;font-weight:800;letter-spacing:-.01em}
+h2{font-size:1.3rem;font-weight:700}
+h3{font-size:1.05rem;font-weight:700}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.muted{color:var(--ink-2)}
+.small{font-size:.875rem}
+.label{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);font-weight:700}
+.num{font-variant-numeric:tabular-nums}
+
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bg);padding-block:14px 0;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand .where{font-size:.85rem;color:var(--ink-2)}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;margin-top:10px;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{border:0;background:none;padding:10px 12px;border-bottom:3px solid transparent;font-weight:700;color:var(--ink-2);white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+
+main{display:flex;flex-direction:column;gap:20px;padding-top:18px}
+section[hidden]{display:none}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.between{justify-content:space-between}
+
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:9px 14px;font-weight:700}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ghost{background:none;border-color:transparent;color:var(--accent);padding-inline:6px}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn.sm{padding:5px 10px;font-size:.85rem}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.banner{border-radius:var(--radius);padding:12px 14px;background:var(--accent-soft);display:flex;gap:10px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.banner.warn{background:color-mix(in srgb,var(--warn) 16%,var(--surface))}
+.banner.err{background:color-mix(in srgb,var(--apple) 14%,var(--surface))}
+
+/* Week summary */
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px}
+.stat .v{font-family:var(--display);font-size:1.45rem;font-weight:700}
+.meter{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin-top:8px}
+.meter i{display:block;height:100%;background:var(--accent)}
+.meter.over i{background:var(--apple)}
+.season{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px;font-size:.85rem}
+.chip button{border:0;background:none;padding:0 0 0 2px;color:var(--ink-2);font-size:1rem;line-height:1}
+
+/* Days */
+.day{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.day-h{display:flex;justify-content:space-between;align-items:baseline;padding:10px 14px;background:var(--surface-2)}
+.day-h .d{font-family:var(--display);font-weight:700;font-size:1.1rem}
+.meals{display:grid;grid-template-columns:1fr 1fr}
+@media (max-width:620px){.meals{grid-template-columns:1fr}}
+.meal{padding:12px 14px;display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line)}
+.meals .meal:nth-child(2){border-left:1px solid var(--line)}
+@media (max-width:620px){.meals .meal:nth-child(2){border-left:0}}
+.meal .plato{font-weight:700;font-size:1.02rem}
+.who{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:.9rem}
+.who b{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);padding-top:2px}
+.tag{display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:4px;padding:1px 6px}
+.tag.batch{background:var(--accent-soft);color:var(--accent)}
+.tag.dia{background:color-mix(in srgb,var(--warn) 18%,var(--surface));color:var(--warn)}
+.tag.libre{background:var(--surface-2);color:var(--ink-2)}
+.kidline{padding:8px 14px;border-top:1px dashed var(--line);font-size:.88rem;color:var(--ink-2);display:flex;gap:14px;flex-wrap:wrap}
+.meal.free .plato{color:var(--ink-2);font-style:italic}
+
+/* Shopping */
+.shop{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.shop-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-left:6px solid var(--c);flex-wrap:wrap}
+.shop-h h3{display:flex;gap:8px;align-items:baseline}
+.shop .sec{padding:6px 14px;background:var(--surface-2)}
+.item{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;padding:9px 14px;border-top:1px solid var(--line)}
+.item input[type=checkbox]{width:22px;height:22px;accent-color:var(--accent);margin:0}
+.item .n{font-weight:700}
+.item .q{font-size:.85rem;color:var(--ink-2)}
+.item.done .n,.item.done .q{text-decoration:line-through;color:var(--ink-2)}
+.item.home .n{color:var(--ink-2)}
+.item .r{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.item .price{font-variant-numeric:tabular-nums}
+.linkbtn{border:0;background:none;color:var(--accent);font-size:.8rem;padding:2px 0;text-decoration:underline}
+.spent{display:flex;align-items:center;gap:6px;font-size:.85rem}
+.spent input{width:82px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);text-align:right}
+
+/* Batch */
+.step{display:grid;grid-template-columns:28px 64px 1fr;gap:10px;padding:10px 14px;border-top:1px solid var(--line);align-items:start}
+.step:first-child{border-top:0}
+.step input{width:22px;height:22px;accent-color:var(--accent);margin:2px 0 0}
+.step .t{font-variant-numeric:tabular-nums;font-weight:700;color:var(--accent)}
+.step.done .body{opacity:.55;text-decoration:line-through}
+.eq{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.eq span{font-size:.75rem;border:1px solid var(--line);border-radius:4px;padding:0 6px;color:var(--ink-2)}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2)}
+.where-nevera{color:var(--s-pesca);font-weight:700}
+.where-congelador{color:var(--accent);font-weight:700}
+
+/* Forms */
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-weight:700;font-size:.9rem}
+.field .hint{font-size:.82rem;color:var(--ink-2)}
+input[type=text],input[type=number],input[type=date],select,textarea{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;width:100%}
+textarea{min-height:84px;resize:vertical}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:620px){.grid2{grid-template-columns:1fr}}
+.person{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg)}
+.chipadd{display:flex;gap:6px}
+.chipadd input{flex:1}
+
+.pantry-item{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.progress{display:flex;flex-direction:column;gap:6px}
+.progress li{list-style:none}
+.progress li.now{font-weight:700}
+.progress li.done{color:var(--ok)}
+.progress ul{padding:0;margin:0;display:flex;flex-direction:column;gap:4px}
+.hist{display:grid;grid-template-columns:90px 1fr 70px;gap:8px;align-items:center;font-size:.88rem}
+.hist .bar{height:10px;background:var(--surface-2);border-radius:5px;overflow:hidden}
+.hist .bar i{display:block;height:100%;background:var(--accent)}
+.hist .bar i.over{background:var(--apple)}
+@media (prefers-reduced-motion:no-preference){.spin{display:inline-block;animation:sp 1s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}}
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div class="brand">
+    <h1>La Cocina del Domingo</h1>
+    <span class="where">Gijón · 2 adultos y un peque de 5 años</span>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="semana" aria-selected="true">Menú</button>
+    <button role="tab" data-tab="compra" aria-selected="false">Compra</button>
+    <button role="tab" data-tab="batch" aria-selected="false">Domingo</button>
+    <button role="tab" data-tab="despensa" aria-selected="false">Despensa</button>
+    <button role="tab" data-tab="ajustes" aria-selected="false">Gustos y ajustes</button>
+  </nav>
+</header>
+
+<main>
+  <div id="notice" hidden></div>
+
+  <section id="tab-semana" class="stack"></section>
+  <section id="tab-compra" class="stack" hidden></section>
+  <section id="tab-batch" class="stack" hidden></section>
+  <section id="tab-despensa" class="stack" hidden></section>
+  <section id="tab-ajustes" class="stack" hidden></section>
+</main>
+</div>
+
+<script>
+/* =========================================================
+   Datos por defecto (ajustes editables desde la app)
+   ========================================================= */
+const DEFAULT_CONFIG = {
+  presupuesto: 200,
+  comidaLibre: "Sábado-comida",
+  diaCompra: "Viernes",
+  personas: [
+    { id: "padre", nombre: "Padre", alergias: ["piña"], noLeGusta: [] },
+    { id: "madre", nombre: "Madre", alergias: [], noLeGusta: [] },
+    { id: "nino",  nombre: "Niño (5 años)", alergias: [], noLeGusta: [] }
+  ],
+  hidratos: "Adultos: no es keto, comen de todo. Reducen hidratos: pan de centeno integral, pasta integral o de legumbre, arroz integral, en raciones moderadas. Niño: su ración normal de hidratos.",
+  tiendas: "Carnicería: toda la carne.\nPescadería: todo el pescado y marisco.\nFrutería: la fruta, excepto tomates cherry, aguacates, arándanos y frambuesas.\nMercadona: todo lo demás, incluida la verdura y esos cuatro productos.",
+  cocina: "Horno, freidora de aire, sartenes y ollas medianas. Sin olla exprés ni ollas grandes.",
+  notas: ""
+};
+const SHOPS = [
+  { id: "Carnicería", c: "var(--s-carne)" },
+  { id: "Pescadería", c: "var(--s-pesca)" },
+  { id: "Frutería",   c: "var(--s-fruta)" },
+  { id: "Mercadona",  c: "var(--s-merca)" }
+];
+const DIAS = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+/* Menú del comedor escolar 2026/27: rotación de 4 semanas (primer plato, segundo, postre) */
+const COMEDOR = [
+  ["Lentejas con chorizo · Sándwich · Fruta y pan integral","Macarrones gratinados · Pescado con ensalada · Fruta","Ensaladilla rusa · Pollo al horno con guisantes y champiñones · Fruta y pan integral","Arroz integral tres delicias · Pescado con ensalada · Fruta","Sopa · Albóndigas con puré · Yogur"],
+  ["Arroz blanco con huevo · Ensalada mixta · Fruta y pan integral","Puré de calabacín · Filete de pollo con patatas · Fruta","Macarrones integrales con bonito · Pescado con ensalada · Fruta y pan integral","Guiso de carne y patatas · Tortilla de jamón york · Fruta","Sopa de cocido · Cocido completo con repollo · Yogur"],
+  ["Cuscús · Carne guisada · Fruta y pan integral","Pote asturiano · Lomo con guisantes y champiñones · Fruta","Ensalada de pasta integral con bonito · Pescado con ensalada · Fruta y pan integral","Lentejas · Huevos a la mimosa · Fruta","Arroz con huevo y tomate · Pescado con ensalada · Yogur"],
+  ["Arroz con curry · Pollo al ajillo · Fruta y pan integral","Espaguetis carbonara · Pescado con ensalada · Fruta","Puré de verduras · Tortilla de patata y ensalada · Fruta en almíbar y pan integral","Fabada asturiana · Filete ruso · Fruta y pan integral","Sopa de cocido con fideos integrales · Cocido completo con repollo · Yogur"]
+];
+function semanaComedor(lunes) {
+  const ref = S.config.comedorRef;
+  if (!ref || !ref.lunes) return 1;
+  const w = Math.round((new Date(lunes + "T12:00:00") - new Date(ref.lunes + "T12:00:00")) / 6048e5);
+  return ((ref.n - 1 + w) % 4 + 4) % 4 + 1;
+}
+
+/* =========================================================
+   Semana de ejemplo (se muestra hasta generar la primera)
+   ========================================================= */
+const EJEMPLO = {
+  id: "ejemplo", ejemplo: true, lunes: "2026-09-28", comedorSemana: 1, comedorDias: COMEDOR[0],
+  menu: {
+    temporada: { verduras:["calabaza","puerro","coliflor","brócoli","pimiento","berenjena","setas","acelga"], frutas:["manzana asturiana","pera","uva","higo","granada","ciruela"], pescados:["bonito del norte (últimas semanas)","merluza","bocarte","chipirón"] },
+    dias: [
+      { dia:"Lunes", desayunoNino:"Leche con copos de avena y plátano", meriendaNino:"Pan con queso fresco y una pera",
+        comida:{ plato:"Crema de calabaza y puerro con huevo cocido", adultos:"Crema + 2 huevos y ensalada verde", nino:"Comedor escolar", origen:"batch", nota:"Calentar la crema" },
+        cena:{ plato:"Merluza al horno con verduras asadas", adultos:"Merluza con pimiento y berenjena asados", nino:"Merluza sin espinas con patata panadera", origen:"batch", nota:"Merluza cocinada el domingo, 8 min de horno para calentar" } },
+      { dia:"Martes", desayunoNino:"Tostada de pan integral con tomate y aceite, leche", meriendaNino:"Yogur natural con manzana rallada",
+        comida:{ plato:"Lentejas estofadas con verduras", adultos:"Lentejas con mucha verdura, sin patata", nino:"Comedor escolar", origen:"batch", nota:"" },
+        cena:{ plato:"Tortilla de calabacín y cebolla", adultos:"Tortilla con ensalada de tomate", nino:"Tortilla con pan", origen:"dia", nota:"10 min en sartén" } },
+      { dia:"Miércoles", desayunoNino:"Leche con cereales integrales", meriendaNino:"Bocadillo pequeño de jamón cocido y uvas",
+        comida:{ plato:"Pollo guisado con setas", adultos:"Pollo con setas y brócoli al vapor", nino:"Comedor escolar", origen:"batch", nota:"" },
+        cena:{ plato:"Crema de calabaza (resto del lunes) y bocarte rebozado en freidora", adultos:"Crema + bocartes con ensalada", nino:"Bocartes con un poco de arroz blanco", origen:"dia", nota:"Bocartes limpios de la pescadería, 8 min freidora" } },
+      { dia:"Jueves", desayunoNino:"Tostada con aguacate y leche", meriendaNino:"Queso fresco con membrillo y una mandarina",
+        comida:{ plato:"Garbanzos salteados con espinacas y bacalao", adultos:"Ración generosa con ensalada", nino:"Comedor escolar", origen:"batch", nota:"" },
+        cena:{ plato:"Lasaña de carne y verduras", adultos:"Lasaña con láminas de calabacín en vez de pasta, y coliflor asada", nino:"Lasaña con placas de pasta", origen:"batch", nota:"Congelada el domingo: sacar el miércoles noche. El viernes hay albóndigas en el cole" } },
+      { dia:"Viernes", desayunoNino:"Leche con copos de avena", meriendaNino:"Plátano y un puñado de nueces troceadas",
+        comida:{ plato:"Ensalada templada de quinoa, pollo y verduras asadas", adultos:"Con más hoja verde y poca quinoa", nino:"Comedor escolar", origen:"batch", nota:"" },
+        cena:{ plato:"Pizza casera de verduras", adultos:"Base fina integral, más verdura", nino:"Pizza de jamón y queso", origen:"dia", nota:"Plan de viernes en familia" } },
+      { dia:"Sábado", desayunoNino:"Tortitas de avena y plátano", meriendaNino:"Manzana asturiana y un vaso de leche",
+        comida:{ libre:true, plato:"Comida libre", adultos:"", nino:"", origen:"libre", nota:"Comer fuera" },
+        cena:{ plato:"Revuelto de setas y gambas", adultos:"Revuelto con ensalada", nino:"Revuelto con pan", origen:"dia", nota:"" } },
+      { dia:"Domingo", desayunoNino:"Tostada con tomate y huevo revuelto", meriendaNino:"Yogur con granada",
+        comida:{ plato:"Bonito con tomate", adultos:"Bonito con pisto", nino:"Bonito con tomate y arroz", origen:"dia", nota:"Mientras se hace el batch" },
+        cena:{ plato:"Crema de verduras y sándwich", adultos:"Crema de coliflor y queso fresco", nino:"Crema y sándwich de pavo", origen:"dia", nota:"" } }
+    ],
+    nutricion: { pescado:5, legumbre:2, huevo:3, carneRoja:1, comentario:"Semana ligera en hidratos para los adultos y con su ración para el niño en cada cena." }
+  },
+  compra: [
+    { nombre:"Muslos y contramuslos de pollo", cantidad:"1,2", unidad:"kg", tienda:"Carnicería", seccion:"Aves", precio:7.8, para:"Pollo con setas, ensalada de quinoa" },
+    { nombre:"Carne picada de ternera", cantidad:"500", unidad:"g", tienda:"Carnicería", seccion:"Vacuno", precio:6.5, para:"Lasaña" },
+    { nombre:"Merluza en lomos sin espinas", cantidad:"700", unidad:"g", tienda:"Pescadería", seccion:"Pescado blanco", precio:12.6, para:"Merluza al horno" },
+    { nombre:"Bocartes limpios", cantidad:"500", unidad:"g", tienda:"Pescadería", seccion:"Pescado azul", precio:5.0, para:"Cena miércoles" },
+    { nombre:"Bonito del norte en rodajas", cantidad:"600", unidad:"g", tienda:"Pescadería", seccion:"Pescado azul", precio:10.8, para:"Bonito con tomate" },
+    { nombre:"Manzana asturiana", cantidad:"2", unidad:"kg", tienda:"Frutería", seccion:"Fruta", precio:4.4, para:"Meriendas" },
+    { nombre:"Peras conferencia", cantidad:"1", unidad:"kg", tienda:"Frutería", seccion:"Fruta", precio:2.4, para:"Meriendas" },
+    { nombre:"Uvas", cantidad:"750", unidad:"g", tienda:"Frutería", seccion:"Fruta", precio:2.6, para:"Meriendas" },
+    { nombre:"Plátanos", cantidad:"1", unidad:"kg", tienda:"Frutería", seccion:"Fruta", precio:2.2, para:"Desayunos" },
+    { nombre:"Granada", cantidad:"2", unidad:"ud", tienda:"Frutería", seccion:"Fruta", precio:2.0, para:"Postre" },
+    { nombre:"Calabaza troceada", cantidad:"1", unidad:"kg", tienda:"Mercadona", seccion:"Verdura", precio:2.3, para:"Crema" },
+    { nombre:"Puerros", cantidad:"1", unidad:"bandeja", tienda:"Mercadona", seccion:"Verdura", precio:1.5, para:"Crema" },
+    { nombre:"Coliflor", cantidad:"1", unidad:"ud", tienda:"Mercadona", seccion:"Verdura", precio:1.8, para:"Asada y crema" },
+    { nombre:"Brócoli", cantidad:"2", unidad:"ud", tienda:"Mercadona", seccion:"Verdura", precio:2.4, para:"Guarnición" },
+    { nombre:"Setas variadas", cantidad:"2", unidad:"bandejas", tienda:"Mercadona", seccion:"Verdura", precio:4.0, para:"Pollo y revuelto" },
+    { nombre:"Tomates cherry", cantidad:"1", unidad:"tarrina", tienda:"Mercadona", seccion:"Verdura", precio:1.7, para:"Ensaladas" },
+    { nombre:"Aguacates", cantidad:"1", unidad:"malla", tienda:"Mercadona", seccion:"Verdura", precio:2.9, para:"Desayunos y ensaladas" },
+    { nombre:"Huevos frescos L", cantidad:"2", unidad:"docenas", tienda:"Mercadona", seccion:"Huevos", precio:5.2, para:"Tortilla, revuelto, crema" },
+    { nombre:"Lentejas cocidas (bote cristal)", cantidad:"2", unidad:"botes", tienda:"Mercadona", seccion:"Despensa", precio:1.9, para:"Lentejas" },
+    { nombre:"Garbanzos cocidos (bote cristal)", cantidad:"1", unidad:"bote", tienda:"Mercadona", seccion:"Despensa", precio:1.0, para:"Garbanzos con espinacas" },
+    { nombre:"Pasta de legumbres", cantidad:"1", unidad:"paquete", tienda:"Mercadona", seccion:"Despensa", precio:1.6, para:"Adultos" },
+    { nombre:"Pan de centeno integral", cantidad:"1", unidad:"paquete", tienda:"Mercadona", seccion:"Panadería", precio:1.9, para:"Desayunos" },
+    { nombre:"Yogur natural", cantidad:"2", unidad:"packs de 6", tienda:"Mercadona", seccion:"Lácteos", precio:2.4, para:"Meriendas" },
+    { nombre:"Leche entera", cantidad:"6", unidad:"l", tienda:"Mercadona", seccion:"Lácteos", precio:5.6, para:"Desayunos" },
+    { nombre:"Arándanos", cantidad:"1", unidad:"tarrina", tienda:"Mercadona", seccion:"Fruta", precio:2.3, para:"Desayunos" }
+  ],
+  batch: {
+    duracionMin: 170,
+    pasos: [
+      { inicio:"0:00", duracionMin:10, tarea:"Precalentar horno a 200 °C. Pelar y trocear calabaza, puerro, pimiento y berenjena.", equipo:["tabla"], platos:["Crema","Verduras asadas"] },
+      { inicio:"0:10", duracionMin:40, tarea:"Horno: bandeja de verduras asadas y bandeja de coliflor. A la vez, sofreír puerro y calabaza para la crema en olla mediana.", equipo:["horno","olla"], platos:["Verduras asadas","Crema"] },
+      { inicio:"0:20", duracionMin:30, tarea:"Dorar el pollo en sartén y guisar con setas en la otra olla.", equipo:["sartén","olla"], platos:["Pollo con setas"] },
+      { inicio:"0:50", duracionMin:15, tarea:"Triturar la crema y repartir en dos táperes (lunes y miércoles).", equipo:["batidora"], platos:["Crema"] },
+      { inicio:"1:05", duracionMin:25, tarea:"Boloñesa de ternera con verduras. Montar dos lasañas pequeñas (calabacín para adultos, pasta para el niño) y congelarlas.", equipo:["sartén","olla"], platos:["Lasaña"] },
+      { inicio:"1:30", duracionMin:20, tarea:"Merluza al horno 12 min sobre parte de las verduras. Lentejas estofadas con sofrito y verdura.", equipo:["horno","olla"], platos:["Merluza","Lentejas"] },
+      { inicio:"1:50", duracionMin:20, tarea:"Quinoa cocida y huevos cocidos. Garbanzos salteados con espinacas.", equipo:["olla","sartén"], platos:["Ensalada quinoa","Garbanzos"] },
+      { inicio:"2:10", duracionMin:20, tarea:"Enfriar, etiquetar táperes con el día y colocar nevera y congelador. Lavar y cortar verdura cruda para la semana.", equipo:["táperes"], platos:[] }
+    ],
+    conservacion: [
+      { plato:"Crema de calabaza", donde:"nevera", hasta:"Miércoles", descongelar:"" },
+      { plato:"Merluza con verduras", donde:"nevera", hasta:"Lunes", descongelar:"" },
+      { plato:"Lentejas", donde:"nevera", hasta:"Martes", descongelar:"" },
+      { plato:"Pollo con setas", donde:"nevera", hasta:"Miércoles", descongelar:"" },
+      { plato:"Garbanzos con espinacas", donde:"congelador", hasta:"Jueves", descongelar:"Pasar a la nevera el miércoles por la noche" },
+      { plato:"Lasañas", donde:"congelador", hasta:"Jueves", descongelar:"Pasar a la nevera el miércoles por la noche" }
+    ],
+    diario: [
+      { dia:"Martes", tarea:"Tortilla de calabacín", min:15 },
+      { dia:"Miércoles", tarea:"Bocartes en freidora", min:12 },
+      { dia:"Viernes", tarea:"Pizza casera", min:25 }
+    ]
+  },
+  consejos:["Legumbre de bote de cristal en lugar de cocerla: sin olla exprés ahorra una hora y cuesta poco más.","Bocarte y xarda cuestan la mitad que la merluza y son del Cantábrico."]
+};
+
+/* =========================================================
+   Almacenamiento: base de datos compartida o, si no está,
+   almacenamiento local en este navegador
+   ========================================================= */
+let db = null, sample = null, shared = false;
+
+const local = (() => {
+  const KEY = "cocina-domingo-v1";
+  let data = {};
+  try { data = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { data = {}; }
+  const subs = [];
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {} subs.forEach(s => s()); };
+  return {
+    get: p => data[p],
+    set: (p, v) => { data[p] = v; save(); },
+    update: (p, v) => { data[p] = Object.assign({}, data[p] || {}, v); save(); },
+    del: p => { Object.keys(data).forEach(k => { if (k === p || k.startsWith(p + "/")) delete data[k]; }); save(); },
+    children: col => Object.keys(data).filter(k => k.startsWith(col + "/") && k.split("/").length === col.split("/").length + 1).map(k => ({ id: k.split("/").pop(), data: data[k] })),
+    onChange: fn => subs.push(fn)
+  };
+})();
+
+const store = {
+  async set(path, v) { if (db) return db.doc(path).set(v); local.set(path, v); },
+  async update(path, v) { if (db) return db.doc(path).update(v); local.update(path, v); },
+  async del(path) { if (db) return db.doc(path).delete(); local.del(path); },
+  watchDoc(path, cb) {
+    if (db) return db.doc(path).onSnapshot(s => cb(s.exists ? s.data() : null), e => showError("No se pudo leer: " + e.message));
+    const f = () => cb(local.get(path) || null); local.onChange(f); f();
+  },
+  watchCol(path, cb) {
+    if (db) return db.collection(path).onSnapshot(s => cb(s.docs.map(d => ({ id: d.id, data: d.data() }))), e => showError("No se pudo leer: " + e.message));
+    const f = () => cb(local.children(path)); local.onChange(f); f();
+  }
+};
+
+/* =========================================================
+   Estado
+   ========================================================= */
+const S = {
+  tab: "semana",
+  config: structuredClone(DEFAULT_CONFIG),
+  semanas: [],          // [{id, data}]
+  semanaId: null,
+  items: [],            // artículos de la compra de la semana seleccionada
+  despensa: [],
+  gen: null,            // progreso de generación
+  error: null,
+  swapping: null
+};
+let unsubItems = null;
+
+function semanaActual() {
+  if (!S.semanaId) return null;
+  if (S.semanaId === "ejemplo") return EJEMPLO;
+  const s = S.semanas.find(x => x.id === S.semanaId);
+  return s ? Object.assign({ id: s.id }, s.data) : null;
+}
+function itemsActuales() {
+  if (S.semanaId === "ejemplo") return EJEMPLO.compra.map((it, i) => Object.assign({ id: "e" + i, estado: "pendiente" }, it));
+  return S.items;
+}
+
+/* =========================================================
+   Utilidades
+   ========================================================= */
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const eur = n => (Number(n) || 0).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
+const uid = () => Math.random().toString(36).slice(2, 10);
+function proximoLunes(d = new Date()) {
+  const x = new Date(d); const dow = (x.getDay() + 6) % 7; x.setDate(x.getDate() + (7 - dow)); return x.toISOString().slice(0, 10);
+}
+function fechaCorta(iso, offset = 0) {
+  const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + offset);
+  return d.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+}
+function mesDe(iso) { return new Date(iso + "T12:00:00").toLocaleDateString("es-ES", { month: "long" }); }
+function showError(msg) { S.error = msg; render(); }
+
+/* =========================================================
+   Prompts para la IA
+   ========================================================= */
+function perfilFamilia() {
+  const c = S.config;
+  const gente = c.personas.map(p => `- ${p.nombre}: no puede comer → ${p.alergias.join(", ") || "nada"}; no le gusta → ${p.noLeGusta.join(", ") || "nada en especial"}`).join("\n");
+  const despensa = S.despensa.length ? S.despensa.map(d => `- ${d.data.nombre}${d.data.cantidad ? " (" + d.data.cantidad + ")" : ""} [${d.data.lugar}]`).join("\n") : "- (vacía)";
+  return `FAMILIA (Gijón, Asturias): Padre, Madre y un niño de 5 años.
+${gente}
+HIDRATOS: ${c.hidratos}
+REGLA CLAVE: un solo menú con base común; al servir, adultos con más verdura y poco hidrato, niño con su guarnición de hidrato. Nunca dos platos distintos.
+ESTRUCTURA: lunes a viernes el niño come en el COMEDOR ESCOLAR (su comida = "Comedor escolar"); allí suele tomar bastante hidrato (arroz, pasta, legumbre, patata) y fruta o yogur, así que su cena debe compensar: más verdura y la proteína que no haya tomado ese día. Adultos comen en casa. Fin de semana comen los tres. Niño además: desayuno y merienda todos los días.
+COMIDA LIBRE (comer fuera, sin compra): ${c.comidaLibre.replace("-", " a la hora de la ")}.
+CALENDARIO: compra el ${c.diaCompra.toLowerCase()}, batch cooking el domingo por la tarde que cubre ~80 % de la semana; entre semana solo tareas rápidas (≤ 15 min).
+COCINA: ${c.cocina}
+TIENDAS:\n${c.tiendas}
+PRESUPUESTO objetivo: ${c.presupuesto} €/semana (hoy gastan 200–250 €).
+DESPENSA (ya lo tienen, no comprar salvo que falte cantidad):\n${despensa}
+${c.notas ? "NOTAS: " + c.notas : ""}`;
+}
+
+function promptMenu(lunes, comedor, peticiones, previos) {
+  return `Eres un planificador experto en alimentación familiar y batch cooking, con cocina española y asturiana, producto de temporada del norte de España y surtido de Mercadona.
+
+${perfilFamilia()}
+
+SEMANA: del lunes ${lunes} al domingo siguiente (mes de ${mesDe(lunes)}). Usa fruta, verdura y pescado del Cantábrico de temporada en Asturias ese mes.
+${comedor ? "MENÚ DEL COMEDOR ESCOLAR esta semana (la cena del niño debe complementarlo y no repetir su proteína; evita también que los adultos coman ese día el mismo plato que el niño en el cole):\n" + comedor : "Esta semana NO hay colegio (vacaciones): el niño come en casa de lunes a viernes, así que su comida sale del mismo menú que la de los adultos (en \"nino\" pon cómo se le sirve)."}
+${peticiones ? "PETICIONES DE ESTA SEMANA: " + peticiones : ""}
+${previos.length ? "Platos de semanas recientes (no repetir): " + previos.join("; ") : ""}
+
+REGLAS: pescado ≥ 3 veces, legumbre ≥ 2, carne roja como mucho 1–2, verdura en cada comida; no repetir plato ni la misma proteína dos días seguidos; pescado y carne fresca en los 2–3 primeros días o congelados en el batch; recetas aptas para un niño de 5 años (sin picante ni espinas). La piña nunca en platos compartidos.
+
+Responde SOLO con JSON válido, sin texto extra, con esta forma:
+{"temporada":{"verduras":[..],"frutas":[..],"pescados":[..]},
+ "dias":[{"dia":"Lunes","desayunoNino":"...","meriendaNino":"...",
+   "comida":{"libre":false,"plato":"nombre del plato","adultos":"cómo se sirve a los adultos","nino":"cómo se sirve al niño, o 'Comedor escolar'","origen":"batch|dia","nota":"cómo terminarlo o calentarlo, breve"},
+   "cena":{ ...igual... }} ... 7 días de Lunes a Domingo],
+ "nutricion":{"pescado":n,"legumbre":n,"huevo":n,"carneRoja":n,"comentario":"una frase"}}
+Para la comida libre usa {"libre":true,"plato":"Comida libre","adultos":"","nino":"","origen":"libre","nota":"Comer fuera"}.`;
+}
+
+function promptCompra(menu) {
+  return `Eres un experto en hacer la compra para una familia en Gijón.
+
+${perfilFamilia()}
+
+MENÚ DE LA SEMANA (JSON):
+${JSON.stringify(menu.dias)}
+
+Haz la lista de la compra completa para cocinar este menú (incluidos desayunos y meriendas del niño), para 2 adultos y un niño de 5 años. Descuenta lo que hay en la despensa. No incluyas nada para la comida libre ni para la comida del niño en el comedor. Cantidades exactas y realistas (en carnicería y pescadería di peso y cómo pedirlo: "fileteado", "limpio", "en rodajas"...). En Mercadona usa nombres y formatos reales y agrupa por sección (Verdura, Fruta, Lácteos, Huevos, Despensa, Panadería, Congelados, Charcutería, Limpieza...). Precio estimado en euros de cada línea (total de esa línea, precios de Asturias en 2026).
+Asigna cada artículo a su tienda según las reglas de TIENDAS.
+
+Responde SOLO con JSON válido:
+{"items":[{"nombre":"...","cantidad":"...","unidad":"...","tienda":"Carnicería|Pescadería|Frutería|Mercadona","seccion":"...","precio":0.0,"para":"plato(s) en que se usa"}],
+ "consejos":["2-4 ideas concretas para ahorrar esta semana sin perder calidad"]}`;
+}
+
+function promptBatch(menu) {
+  return `Eres un experto en batch cooking.
+
+${perfilFamilia()}
+
+MENÚ (JSON):
+${JSON.stringify(menu.dias)}
+
+Diseña la sesión de batch cooking del DOMINGO POR LA TARDE para dejar hecho ~80 % de las comidas marcadas "batch". Aprovecha en paralelo horno, freidora de aire y fuegos (sin olla exprés). Indica qué se congela y cuándo sacarlo, y hasta qué día aguanta en nevera cada cosa. Añade las tareas cortas del día a día para lo marcado "dia".
+
+Responde SOLO con JSON válido:
+{"duracionMin":n,
+ "pasos":[{"inicio":"h:mm desde el comienzo","duracionMin":n,"tarea":"qué hacer, concreto","equipo":["horno","freidora","sartén","olla"...],"platos":["..."]}],
+ "conservacion":[{"plato":"...","donde":"nevera|congelador","hasta":"día de la semana en que se come como tarde","descongelar":"cuándo sacarlo, o vacío"}],
+ "diario":[{"dia":"Lunes","tarea":"...","min":n}]}`;
+}
+
+function promptCambio(menu, diaIdx, slot, motivo) {
+  const d = menu.dias[diaIdx];
+  return `Eres un planificador de menús familiares.
+
+${perfilFamilia()}
+
+Menú actual de la semana (JSON): ${JSON.stringify(menu.dias.map(x => ({ dia: x.dia, comida: x.comida.plato, cena: x.cena.plato })))}
+
+Cambia la ${slot} del ${d.dia} (ahora: "${d[slot].plato}") por otra opción que encaje con el resto de la semana, de temporada, sin repetir proteína con el día anterior o siguiente.${motivo ? " Motivo o preferencia: " + motivo : ""}
+${slot === "comida" && diaIdx < 5 ? 'El niño come en el comedor: "nino":"Comedor escolar".' : ""}
+Responde SOLO con JSON: {"libre":false,"plato":"...","adultos":"...","nino":"...","origen":"batch|dia","nota":"..."}`;
+}
+
+/* =========================================================
+   Generación con IA
+   ========================================================= */
+async function generarSemana(form) {
+  if (!sample) return;
+  const lunes = form.lunes;
+  const id = lunes;
+  const previos = S.semanas.filter(s => s.id !== id).sort((a, b) => b.id.localeCompare(a.id)).slice(0, 2)
+    .flatMap(s => (s.data.menu?.dias || []).flatMap(d => [d.comida?.plato, d.cena?.plato])).filter(p => p && p !== "Comida libre");
+  S.gen = { paso: 0, pasos: ["Menú de la semana", "Lista de la compra por tiendas", "Plan del domingo"], error: null };
+  S.error = null; render();
+  if (form.comedorSemana) { S.config.comedorRef = { lunes, n: form.comedorSemana }; saveConfig(); }
+  try {
+    const menu = await sample.json(promptMenu(lunes, form.comedor, form.peticiones, previos), { modelTier: "complex" });
+    if (!menu || !Array.isArray(menu.dias) || menu.dias.length !== 7) throw { message: "El menú llegó incompleto. Vuelve a intentarlo." };
+    await store.set("semanas/" + id, { lunes, menu, comedor: form.comedor || "", comedorSemana: form.comedorSemana, comedorDias: form.comedorDias || [], peticiones: form.peticiones || "", creada: new Date().toISOString(), gastos: {}, batchHecho: [], compraDesfasada: false });
+    S.semanaId = id; S.gen.paso = 1; render();
+
+    await generarCompra(id, menu);
+    S.gen.paso = 2; render();
+
+    const batch = await sample.json(promptBatch(menu), { modelTier: "complex" });
+    await store.update("semanas/" + id, { batch });
+    S.gen = null; S.tab = "semana"; render();
+  } catch (e) {
+    S.gen.error = mensajeIA(e); render();
+  }
+}
+
+async function generarCompra(id, menu) {
+  const res = await sample.json(promptCompra(menu), { modelTier: "complex" });
+  const items = Array.isArray(res?.items) ? res.items : [];
+  if (!items.length) throw { message: "La lista de la compra llegó vacía. Vuelve a intentarlo." };
+  // borrar la lista anterior de esa semana
+  const antiguos = (S.semanaId === id ? S.items : []).map(i => i.id);
+  for (const oid of antiguos) await store.del(`semanas/${id}/compra/${oid}`);
+  const writes = items.map((it, i) => store.set(`semanas/${id}/compra/${String(i).padStart(3, "0")}-${uid()}`, {
+    nombre: String(it.nombre || ""), cantidad: String(it.cantidad ?? ""), unidad: String(it.unidad || ""),
+    tienda: SHOPS.some(s => s.id === it.tienda) ? it.tienda : "Mercadona", seccion: String(it.seccion || "Otros"),
+    precio: Number(it.precio) || 0, para: String(it.para || ""), estado: "pendiente", orden: i
+  }));
+  await Promise.all(writes);
+  await store.update("semanas/" + id, { consejos: Array.isArray(res.consejos) ? res.consejos : [], compraDesfasada: false });
+}
+
+async function regenerarCompra() {
+  const s = semanaActual(); if (!s || s.ejemplo || !sample) return;
+  S.gen = { paso: 1, pasos: ["Menú de la semana", "Lista de la compra por tiendas", "Plan del domingo"], error: null, soloCompra: true }; render();
+  try {
+    await generarCompra(s.id, s.menu);
+    S.gen.paso = 2; render();
+    const batch = await sample.json(promptBatch(s.menu), { modelTier: "complex" });
+    await store.update("semanas/" + s.id, { batch, batchHecho: [] });
+    S.gen = null; render();
+  } catch (e) { S.gen.error = mensajeIA(e); render(); }
+}
+
+async function cambiarPlato(diaIdx, slot, motivo) {
+  const s = semanaActual(); if (!s || s.ejemplo || !sample) return;
+  S.swapping = diaIdx + "-" + slot; render();
+  try {
+    const nuevo = await sample.json(promptCambio(s.menu, diaIdx, slot, motivo), { modelTier: "default", cache: false });
+    if (!nuevo?.plato) throw { message: "No llegó un plato válido." };
+    const menu = structuredClone(s.menu);
+    menu.dias[diaIdx][slot] = nuevo;
+    await store.update("semanas/" + s.id, { menu, compraDesfasada: true });
+  } catch (e) { S.error = mensajeIA(e); }
+  S.swapping = null; render();
+}
+
+function mensajeIA(e) {
+  const c = e?.code;
+  if (c === "not_granted") return "No has dado permiso para usar Claude en esta página. Recarga y acepta el aviso para generar menús.";
+  if (c === "rate_limited") return "Has hecho muchas peticiones seguidas. Espera un par de minutos y vuelve a intentarlo.";
+  if (c === "invalid_json" || c === "empty_completion") return "La respuesta de la IA llegó cortada. Vuelve a intentarlo.";
+  if (c === "cancelled") return "Generación cancelada.";
+  return e?.message || "Algo falló al generar. Vuelve a intentarlo.";
+}
+
+/* =========================================================
+   Render
+   ========================================================= */
+let renderPending = false;
+function editando(el) {
+  const a = document.activeElement;
+  return a && el.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type !== "checkbox" && a.id !== "sel-semana";
+}
+function render(force) {
+  document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === S.tab)));
+  ["semana","compra","batch","despensa","ajustes"].forEach(t => document.getElementById("tab-" + t).hidden = t !== S.tab);
+  const n = document.getElementById("notice");
+  let notice = "";
+  if (S.error) notice += `<div class="banner err"><span>${esc(S.error)}</span><button class="btn sm" data-act="cerrar-error">Cerrar</button></div>`;
+  if (!shared) notice += `<div class="banner warn small"><span>Modo local: los datos se guardan solo en este navegador${sample ? "" : " y la generación con IA no está disponible"}. Ábrela desde claude.ai para compartirla con tu pareja y generar menús.</span></div>`;
+  n.innerHTML = notice; n.hidden = !notice;
+  const fn = { semana: renderSemana, compra: renderCompra, batch: renderBatch, despensa: renderDespensa, ajustes: renderAjustes }[S.tab];
+  const el = document.getElementById("tab-" + S.tab);
+  // No redibujar mientras alguien escribe en un formulario de esta pestaña
+  if (!force && editando(el)) { renderPending = true; return; }
+  renderPending = false;
+  const active = document.activeElement?.id;
+  el.innerHTML = fn();
+  if (active && force) { const a = document.getElementById(active); if (a && a.tagName === "INPUT" && a.type === "text") a.focus(); }
+}
+document.addEventListener("focusout", () => setTimeout(() => { if (renderPending && !editando(document.getElementById("tab-" + S.tab))) render(); }, 0));
+document.addEventListener("toggle", e => { if (e.target.id === "gen-panel") S.genOpen = e.target.open; }, true);
+
+function selectorSemana() {
+  const opts = S.semanas.slice().sort((a, b) => b.id.localeCompare(a.id)).map(s => `<option value="${esc(s.id)}" ${s.id === S.semanaId ? "selected" : ""}>Semana del ${esc(fechaCorta(s.id))}</option>`).join("");
+  if (!S.semanas.length) return "";
+  return `<select id="sel-semana" aria-label="Semana" style="width:auto">${opts}</select>`;
+}
+
+function panelGenerar() {
+  if (S.gen) {
+    const g = S.gen;
+    return `<div class="panel progress"><h2>${g.error ? "No se pudo terminar" : "Preparando la semana…"}</h2>
+      <ul>${g.pasos.map((p, i) => `<li class="${i < g.paso ? "done" : i === g.paso && !g.error ? "now" : ""}">${i < g.paso ? "✓" : i === g.paso && !g.error ? '<span class="spin">◌</span>' : "·"} ${esc(p)}</li>`).join("")}</ul>
+      ${g.error ? `<p class="muted">${esc(g.error)}</p><div class="row"><button class="btn" data-act="cerrar-gen">Cerrar</button></div>` : `<p class="small muted">Tarda uno o dos minutos. Puedes seguir usando la app.</p>`}</div>`;
+  }
+  const lunes = proximoLunes();
+  return `<details class="panel" id="gen-panel" ${(S.genOpen ?? !S.semanas.length) ? "open" : ""}>
+    <summary><h2 style="display:inline">Planificar una semana nueva</h2></summary>
+    <form id="form-gen" class="stack" style="margin-top:12px">
+      <div class="grid2">
+        <div class="field"><label for="g-lunes">Semana que empieza el lunes</label><input type="date" id="g-lunes" value="${lunes}" required></div>
+        <div class="field"><label for="g-pet">Peticiones para esta semana</label><input type="text" id="g-pet" placeholder="Ej.: queremos fabada el domingo, algo de marisco…"></div>
+      </div>
+      <div class="field"><label for="g-comedor">Comedor del cole esa semana</label>
+        <select id="g-comedor">${[1,2,3,4].map(n => `<option value="${n}" ${n === semanaComedor(lunes) ? "selected" : ""}>Semana ${n} del menú (menús ${n*5-4}–${n*5})</option>`).join("")}<option value="0">No hay cole (vacaciones o festivos)</option></select>
+        <span class="hint" id="g-comedor-prev">${esc(COMEDOR[semanaComedor(lunes)-1].map((x,i) => DIAS[i].slice(0,2) + ": " + x.split(" · ")[1]).join(" · "))}</span>
+        <span class="hint">La app avanza sola a la semana siguiente del menú. Las cenas del niño complementan lo que comió en el cole.</span></div>
+      <div class="row"><button class="btn primary" type="submit" ${sample ? "" : "disabled"}>Generar menú, compra y plan del domingo</button>
+      ${sample ? "" : `<span class="small muted">Necesita abrirse en claude.ai.</span>`}</div>
+    </form></details>`;
+}
+
+function renderSemana() {
+  const s = semanaActual();
+  let h = `<div class="row between"><div><span class="label">Semana</span><h2>${s ? (s.ejemplo ? "Ejemplo: semana del " : "Del ") + esc(fechaCorta(s.lunes)) + " al " + esc(fechaCorta(s.lunes, 6)) : "Sin semana"}</h2></div>${selectorSemana()}</div>`;
+  h += panelGenerar();
+  if (!s) return h;
+  if (s.ejemplo) h += `<div class="banner small"><span>Esto es una semana de ejemplo para que veas cómo funciona. Genera la vuestra arriba.</span></div>`;
+  if (s.compraDesfasada) h += `<div class="banner warn"><span>Has cambiado platos: la lista de la compra y el plan del domingo ya no coinciden.</span><button class="btn sm primary" data-act="regen-compra" ${sample ? "" : "disabled"}>Rehacer compra y plan</button></div>`;
+
+  const items = itemsActuales().filter(i => i.estado !== "casa");
+  const est = items.reduce((a, i) => a + (Number(i.precio) || 0), 0);
+  const pres = S.config.presupuesto;
+  const nut = s.menu?.nutricion || {};
+  h += `<div class="summary">
+    <div class="stat"><span class="label">Compra estimada</span><div class="v num">${eur(est)}</div><div class="meter ${est > pres ? "over" : ""}"><i style="width:${Math.min(100, est / pres * 100)}%"></i></div><span class="small muted">Objetivo ${eur(pres)}</span></div>
+    <div class="stat"><span class="label">Pescado</span><div class="v num">${nut.pescado ?? "–"}<span class="small muted"> veces</span></div><span class="small muted">mín. 3</span></div>
+    <div class="stat"><span class="label">Legumbre</span><div class="v num">${nut.legumbre ?? "–"}<span class="small muted"> veces</span></div><span class="small muted">mín. 2</span></div>
+    <div class="stat"><span class="label">Del batch</span><div class="v num">${pctBatch(s.menu)}%</div><span class="small muted">de comidas y cenas</span></div>
+  </div>`;
+  if (nut.comentario) h += `<p class="muted">${esc(nut.comentario)}</p>`;
+  const t = s.menu?.temporada;
+  if (t) h += `<div class="stack" style="gap:6px"><span class="label">De temporada en ${esc(mesDe(s.lunes))}</span><div class="season">${[...(t.verduras||[]),...(t.frutas||[]),...(t.pescados||[])].map(x => `<span class="chip">${esc(x)}</span>`).join("")}</div></div>`;
+
+  (s.menu?.dias || []).forEach((d, i) => {
+    h += `<article class="day"><div class="day-h"><span class="d">${esc(d.dia)}</span><span class="small muted">${esc(fechaCorta(s.lunes, i))}</span></div>
+      <div class="meals">${renderMeal(d.comida, "Comida", i, "comida", s)}${renderMeal(d.cena, "Cena", i, "cena", s)}</div>
+      <div class="kidline">${s.comedorDias?.[i] ? `<span><b>Cole (menú ${ (s.comedorSemana-1)*5 + i + 1 }):</b> ${esc(s.comedorDias[i])}</span>` : ""}<span><b>Desayuno niño:</b> ${esc(d.desayunoNino)}</span><span><b>Merienda:</b> ${esc(d.meriendaNino)}</span></div></article>`;
+  });
+  return h;
+}
+function pctBatch(menu) {
+  const all = (menu?.dias || []).flatMap(d => [d.comida, d.cena]).filter(m => m && !m.libre);
+  if (!all.length) return 0;
+  return Math.round(all.filter(m => m.origen === "batch").length / all.length * 100);
+}
+function renderMeal(m, titulo, i, slot, s) {
+  if (!m) return "";
+  if (m.libre) return `<div class="meal free"><div class="row between"><span class="label">${titulo}</span><span class="tag libre">Libre</span></div><div class="plato">Comida libre</div><span class="small muted">${esc(m.nota)}</span></div>`;
+  const key = i + "-" + slot, busy = S.swapping === key;
+  return `<div class="meal"><div class="row between"><span class="label">${titulo}</span><span class="tag ${m.origen === "batch" ? "batch" : "dia"}">${m.origen === "batch" ? "Batch domingo" : "Del día"}</span></div>
+    <div class="plato">${esc(m.plato)}</div>
+    <div class="who">${m.adultos ? `<b>Adultos</b><span>${esc(m.adultos)}</span>` : ""}${m.nino ? `<b>Niño</b><span>${esc(m.nino)}</span>` : ""}</div>
+    ${m.nota ? `<span class="small muted">${esc(m.nota)}</span>` : ""}
+    ${s.ejemplo || !sample ? "" : `<div><button class="btn ghost sm" data-act="swap" data-i="${i}" data-slot="${slot}" ${busy || S.swapping ? "disabled" : ""}>${busy ? '<span class="spin">◌</span> Buscando otro…' : "Cambiar plato"}</button></div>`}
+  </div>`;
+}
+
+function renderCompra() {
+  const s = semanaActual();
+  if (!s) return `<p class="muted">Genera una semana en la pestaña Menú para ver la lista.</p>`;
+  const items = itemsActuales().slice().sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+  const pres = S.config.presupuesto;
+  const est = items.filter(i => i.estado !== "casa").reduce((a, i) => a + (Number(i.precio) || 0), 0);
+  const gastos = s.gastos || {};
+  const real = SHOPS.reduce((a, sh) => a + (Number(gastos[sh.id]) || 0), 0);
+  const pend = items.filter(i => i.estado === "pendiente").length;
+  let h = `<div class="row between"><div><span class="label">Compra del ${esc(S.config.diaCompra.toLowerCase())}</span><h2>${pend ? pend + " cosas por comprar" : "Todo comprado"}</h2></div>${selectorSemana()}</div>`;
+  if (s.ejemplo) h += `<div class="banner small"><span>Lista de ejemplo: las casillas no se guardan.</span></div>`;
+  if (s.compraDesfasada) h += `<div class="banner warn"><span>El menú ha cambiado desde que se hizo esta lista.</span><button class="btn sm primary" data-act="regen-compra" ${sample ? "" : "disabled"}>Rehacer lista</button></div>`;
+  h += `<div class="summary">
+    <div class="stat"><span class="label">Estimado</span><div class="v num">${eur(est)}</div><div class="meter ${est > pres ? "over" : ""}"><i style="width:${Math.min(100, est / pres * 100)}%"></i></div><span class="small muted">Objetivo ${eur(pres)}</span></div>
+    <div class="stat"><span class="label">Gastado de verdad</span><div class="v num">${real ? eur(real) : "–"}</div><span class="small muted">${real ? (real <= pres ? "Dentro del objetivo" : "Te pasas " + eur(real - pres)) : "Apunta el ticket de cada tienda"}</span></div>
+  </div>`;
+  SHOPS.forEach(sh => {
+    const its = items.filter(i => i.tienda === sh.id);
+    if (!its.length) return;
+    const sub = its.filter(i => i.estado !== "casa").reduce((a, i) => a + (Number(i.precio) || 0), 0);
+    const done = its.filter(i => i.estado !== "pendiente").length;
+    const secs = [...new Set(its.map(i => i.seccion || "Otros"))];
+    h += `<div class="shop" style="--c:${sh.c}"><div class="shop-h"><h3>${sh.id} <span class="small muted num">${done}/${its.length}</span></h3>
+      <div class="row"><span class="small muted num">≈ ${eur(sub)}</span>
+      <label class="spent">Ticket <input type="number" inputmode="decimal" step="0.01" min="0" id="gasto-${sh.id}" data-shop="${sh.id}" value="${gastos[sh.id] ?? ""}" ${s.ejemplo ? "disabled" : ""}> €</label></div></div>`;
+    secs.forEach(sec => {
+      if (secs.length > 1 || sh.id === "Mercadona") h += `<div class="sec label">${esc(sec)}</div>`;
+      its.filter(i => (i.seccion || "Otros") === sec).forEach(i => {
+        h += `<div class="item ${i.estado === "comprado" ? "done" : ""} ${i.estado === "casa" ? "home" : ""}">
+          <input type="checkbox" id="it-${esc(i.id)}" data-item="${esc(i.id)}" ${i.estado !== "pendiente" ? "checked" : ""} ${s.ejemplo ? "disabled" : ""} aria-label="${esc(i.nombre)}">
+          <label for="it-${esc(i.id)}"><div class="n">${esc(i.nombre)}</div><div class="q">${esc(i.cantidad)} ${esc(i.unidad)}${i.para ? " · " + esc(i.para) : ""}${i.estado === "casa" ? " · ya lo teníamos" : ""}</div></label>
+          <div class="r"><span class="price small">${eur(i.precio)}</span>${s.ejemplo || i.estado !== "pendiente" ? "" : `<button class="linkbtn" data-act="casa" data-item="${esc(i.id)}">Ya lo tengo</button>`}</div></div>`;
+      });
+    });
+    h += `</div>`;
+  });
+  if (!s.ejemplo) h += `<form id="form-add-item" class="panel stack"><h3>Añadir algo a la lista</h3>
+    <div class="grid2"><div class="field"><label for="ai-nombre">Producto</label><input type="text" id="ai-nombre" required placeholder="Papel de cocina"></div>
+    <div class="field"><label for="ai-tienda">Tienda</label><select id="ai-tienda">${SHOPS.map(x => `<option ${x.id === "Mercadona" ? "selected" : ""}>${x.id}</option>`).join("")}</select></div>
+    <div class="field"><label for="ai-cant">Cantidad</label><input type="text" id="ai-cant" placeholder="1 paquete"></div>
+    <div class="field"><label for="ai-precio">Precio aprox. (€)</label><input type="number" step="0.01" min="0" id="ai-precio"></div></div>
+    <div><button class="btn primary" type="submit">Añadir</button></div></form>`;
+  const cons = s.consejos || [];
+  if (cons.length) h += `<div class="panel stack"><h3>Ideas para gastar menos</h3>${cons.map(c => `<p>${esc(c)}</p>`).join("")}</div>`;
+  if (!s.ejemplo) {
+    const comprados = items.filter(i => i.estado === "comprado").length;
+    if (comprados) h += `<div class="row"><button class="btn" data-act="a-despensa">Pasar lo comprado a la despensa</button><span class="small muted">Para que la próxima semana no se vuelva a comprar lo que sobre.</span></div>`;
+  }
+  h += historial();
+  return h;
+}
+
+function historial() {
+  const rows = S.semanas.slice().sort((a, b) => b.id.localeCompare(a.id)).slice(0, 8).map(s => ({ id: s.id, real: SHOPS.reduce((a, sh) => a + (Number(s.data.gastos?.[sh.id]) || 0), 0) })).filter(r => r.real > 0);
+  if (!rows.length) return "";
+  const max = Math.max(250, ...rows.map(r => r.real));
+  const media = rows.reduce((a, r) => a + r.real, 0) / rows.length;
+  return `<div class="panel stack"><div class="row between"><h3>Gasto real por semana</h3><span class="small muted">Media ${eur(media)} · antes 200–250 €</span></div>
+    ${rows.map(r => `<div class="hist"><span class="num">${esc(fechaCorta(r.id))}</span><div class="bar"><i class="${r.real > S.config.presupuesto ? "over" : ""}" style="width:${r.real / max * 100}%"></i></div><span class="num" style="text-align:right">${eur(r.real)}</span></div>`).join("")}</div>`;
+}
+
+function renderBatch() {
+  const s = semanaActual();
+  if (!s) return `<p class="muted">Genera una semana para ver el plan del domingo.</p>`;
+  const b = s.batch;
+  if (!b) return `<p class="muted">${S.gen ? "Preparando el plan del domingo…" : "Esta semana aún no tiene plan del domingo."}</p>`;
+  const hechos = new Set(s.batchHecho || []);
+  const pasos = b.pasos || [];
+  const h0 = Math.floor((b.duracionMin || 0) / 60), m0 = (b.duracionMin || 0) % 60;
+  let h = `<div class="row between"><div><span class="label">Domingo por la tarde</span><h2>Sesión de ${h0 ? h0 + " h " : ""}${m0 ? m0 + " min" : ""}</h2></div>${selectorSemana()}</div>`;
+  h += `<div class="summary"><div class="stat"><span class="label">Hecho</span><div class="v num">${hechos.size}/${pasos.length}</div><div class="meter"><i style="width:${pasos.length ? hechos.size / pasos.length * 100 : 0}%"></i></div></div>
+    <div class="stat"><span class="label">Cubre</span><div class="v num">${pctBatch(s.menu)}%</div><span class="small muted">de las comidas</span></div></div>`;
+  h += `<div class="panel" style="padding:0">${pasos.map((p, i) => `<div class="step ${hechos.has(i) ? "done" : ""}">
+      <input type="checkbox" id="st-${i}" data-step="${i}" ${hechos.has(i) ? "checked" : ""} ${s.ejemplo ? "disabled" : ""} aria-label="Paso ${i + 1}">
+      <span class="t">${esc(p.inicio)}</span>
+      <label for="st-${i}" class="body"><div>${esc(p.tarea)}</div><div class="eq">${(p.equipo || []).map(e => `<span>${esc(e)}</span>`).join("")}${p.duracionMin ? `<span>${p.duracionMin} min</span>` : ""}</div></label></div>`).join("")}</div>`;
+  if ((b.conservacion || []).length) h += `<div class="panel stack"><h3>Nevera y congelador</h3><div class="tablewrap"><table><thead><tr><th>Plato</th><th>Dónde</th><th>Comer como tarde</th><th>Descongelar</th></tr></thead><tbody>
+    ${b.conservacion.map(c => `<tr><td>${esc(c.plato)}</td><td class="where-${c.donde === "congelador" ? "congelador" : "nevera"}">${c.donde === "congelador" ? "Congelador" : "Nevera"}</td><td>${esc(c.hasta)}</td><td>${esc(c.descongelar || "—")}</td></tr>`).join("")}</tbody></table></div></div>`;
+  if ((b.diario || []).length) h += `<div class="panel stack"><h3>Lo que queda para cada día</h3><div class="tablewrap"><table><tbody>
+    ${b.diario.map(d => `<tr><td><b>${esc(d.dia)}</b></td><td>${esc(d.tarea)}</td><td class="num">${d.min ? d.min + " min" : ""}</td></tr>`).join("")}</tbody></table></div></div>`;
+  return h;
+}
+
+function renderDespensa() {
+  const lugares = ["Despensa", "Nevera", "Congelador"];
+  let h = `<div><span class="label">Lo que ya hay en casa</span><h2>Despensa</h2><p class="muted small">La IA lo descuenta al hacer la lista de la compra.</p></div>
+    <form id="form-desp" class="panel stack"><div class="grid2">
+      <div class="field"><label for="d-nombre">Producto</label><input type="text" id="d-nombre" required placeholder="Arroz integral"></div>
+      <div class="field"><label for="d-cant">Cantidad</label><input type="text" id="d-cant" placeholder="medio paquete"></div>
+      <div class="field"><label for="d-lugar">Dónde</label><select id="d-lugar">${lugares.map(l => `<option>${l}</option>`).join("")}</select></div>
+      <div class="field" style="justify-content:flex-end"><button class="btn primary" type="submit">Añadir</button></div></div></form>`;
+  lugares.forEach(l => {
+    const its = S.despensa.filter(d => d.data.lugar === l).sort((a, b) => a.data.nombre.localeCompare(b.data.nombre));
+    h += `<div class="panel"><h3>${l} <span class="small muted num">${its.length}</span></h3>
+      ${its.length ? its.map(d => `<div class="pantry-item"><span>${esc(d.data.nombre)}</span><span class="small muted">${esc(d.data.cantidad)}</span><button class="linkbtn" data-act="quitar-desp" data-id="${esc(d.id)}">Se acabó</button></div>`).join("") : `<p class="small muted" style="padding-top:8px">Nada apuntado.</p>`}</div>`;
+  });
+  return h;
+}
+
+function renderAjustes() {
+  const c = S.config;
+  let h = `<div><span class="label">Se usa en cada menú que genera la IA</span><h2>Gustos y ajustes</h2></div>`;
+  h += `<div class="panel stack"><h3>Qué come cada uno</h3><div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">`;
+  c.personas.forEach(p => {
+    h += `<div class="person"><h3>${esc(p.nombre)}</h3>
+      <span class="label">No puede comer</span><div class="season">${p.alergias.map((a, i) => `<span class="chip" style="border-color:var(--apple)">${esc(a)}<button aria-label="Quitar ${esc(a)}" data-act="quitar-chip" data-p="${p.id}" data-k="alergias" data-i="${i}">×</button></span>`).join("") || `<span class="small muted">Nada</span>`}</div>
+      <form class="chipadd" data-addchip data-p="${p.id}" data-k="alergias"><input type="text" id="al-${p.id}" placeholder="Añadir" aria-label="Añadir alimento que no puede comer ${esc(p.nombre)}"><button class="btn sm" type="submit">+</button></form>
+      <span class="label">No le gusta</span><div class="season">${p.noLeGusta.map((a, i) => `<span class="chip">${esc(a)}<button aria-label="Quitar ${esc(a)}" data-act="quitar-chip" data-p="${p.id}" data-k="noLeGusta" data-i="${i}">×</button></span>`).join("") || `<span class="small muted">Nada apuntado</span>`}</div>
+      <form class="chipadd" data-addchip data-p="${p.id}" data-k="noLeGusta"><input type="text" id="ng-${p.id}" placeholder="Añadir" aria-label="Añadir alimento que no le gusta a ${esc(p.nombre)}"><button class="btn sm" type="submit">+</button></form></div>`;
+  });
+  h += `</div></div>`;
+  h += `<form id="form-ajustes" class="panel stack"><h3>Semana y presupuesto</h3><div class="grid2">
+    <div class="field"><label for="a-pres">Presupuesto semanal (€)</label><input type="number" id="a-pres" min="0" step="5" value="${c.presupuesto}"><span class="hint">Hoy gastáis entre 200 y 250 €.</span></div>
+    <div class="field"><label for="a-libre">Comida libre</label><select id="a-libre">${["Sábado-comida","Domingo-comida","Sábado-cena","Viernes-cena"].map(o => `<option value="${o}" ${o === c.comidaLibre ? "selected" : ""}>${o.replace("-", " · ")}</option>`).join("")}</select></div>
+    <div class="field"><label for="a-compra">Día de compra</label><select id="a-compra">${["Jueves","Viernes","Sábado"].map(o => `<option ${o === c.diaCompra ? "selected" : ""}>${o}</option>`).join("")}</select></div></div>
+    <div class="field"><label for="a-hid">Hidratos</label><textarea id="a-hid">${esc(c.hidratos)}</textarea></div>
+    <div class="field"><label for="a-tiendas">Qué se compra en cada tienda</label><textarea id="a-tiendas">${esc(c.tiendas)}</textarea></div>
+    <div class="field"><label for="a-cocina">Cocina y utensilios</label><textarea id="a-cocina">${esc(c.cocina)}</textarea></div>
+    <div class="field"><label for="a-notas">Otras notas para la IA</label><textarea id="a-notas" placeholder="Ej.: el niño está en fase de no querer nada verde; los martes llegamos tarde…">${esc(c.notas)}</textarea></div>
+    <div class="row"><button class="btn primary" type="submit">Guardar ajustes</button><span id="ajustes-ok" class="small muted" hidden>Guardado</span></div></form>`;
+  return h;
+}
+
+/* =========================================================
+   Acciones
+   ========================================================= */
+function saveConfig() { return store.set("config/hogar", S.config); }
+
+document.addEventListener("click", async e => {
+  const tabBtn = e.target.closest("nav.tabs button");
+  if (tabBtn) { S.tab = tabBtn.dataset.tab; try { localStorage.setItem("cd-tab", S.tab); } catch (x) {} render(); window.scrollTo(0, 0); return; }
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const act = b.dataset.act;
+  const s = semanaActual();
+  if (act === "cerrar-error") { S.error = null; render(); }
+  if (act === "cerrar-gen") { S.gen = null; render(); }
+  if (act === "swap") cambiarPlato(Number(b.dataset.i), b.dataset.slot, "");
+  if (act === "regen-compra") regenerarCompra();
+  if (act === "casa") await store.update(`semanas/${s.id}/compra/${b.dataset.item}`, { estado: "casa" });
+  if (act === "quitar-desp") await store.del("despensa/" + b.dataset.id);
+  if (act === "quitar-chip") {
+    const p = S.config.personas.find(x => x.id === b.dataset.p);
+    p[b.dataset.k].splice(Number(b.dataset.i), 1); await saveConfig(); render();
+  }
+  if (act === "a-despensa") {
+    const comprados = S.items.filter(i => i.estado === "comprado");
+    const lugar = i => /congel/i.test(i.seccion) ? "Congelador" : (i.tienda !== "Mercadona" || /l[aá]cteo|huevo|verdura|fruta|charcut|fresco/i.test(i.seccion)) ? "Nevera" : "Despensa";
+    for (const i of comprados) await store.set("despensa/" + uid(), { nombre: i.nombre, cantidad: `${i.cantidad} ${i.unidad}`.trim(), lugar: lugar(i), semana: s.id });
+    S.tab = "despensa"; render();
+  }
+});
+
+document.addEventListener("change", async e => {
+  const t = e.target; const s = semanaActual();
+  if (t.id === "sel-semana") { selectSemana(t.value); return; }
+  if (t.id === "g-lunes" && t.value) { const sel = document.getElementById("g-comedor"); if (sel && sel.value !== "0") sel.value = String(semanaComedor(t.value)); }
+  if (t.id === "g-lunes" || t.id === "g-comedor") {
+    const n = Number(document.getElementById("g-comedor").value), pv = document.getElementById("g-comedor-prev");
+    if (pv) pv.textContent = n ? COMEDOR[n-1].map((x,i) => DIAS[i].slice(0,2) + ": " + x.split(" · ")[1]).join(" · ") : "El niño come en casa toda la semana.";
+    return;
+  }
+  if (t.dataset.item && t.type === "checkbox" && s && !s.ejemplo) {
+    const it = S.items.find(i => i.id === t.dataset.item);
+    await store.update(`semanas/${s.id}/compra/${t.dataset.item}`, { estado: t.checked ? (it?.estado === "casa" ? "casa" : "comprado") : "pendiente" });
+  }
+  if (t.dataset.step != null && s && !s.ejemplo) {
+    const set = new Set(s.batchHecho || []); const i = Number(t.dataset.step);
+    t.checked ? set.add(i) : set.delete(i);
+    await store.update("semanas/" + s.id, { batchHecho: [...set] });
+  }
+  if (t.dataset.shop && s && !s.ejemplo) {
+    const gastos = Object.assign({}, s.gastos || {}); const v = parseFloat(t.value);
+    if (isNaN(v)) delete gastos[t.dataset.shop]; else gastos[t.dataset.shop] = Math.round(v * 100) / 100;
+    await store.update("semanas/" + s.id, { gastos });
+  }
+});
+
+document.addEventListener("submit", async e => {
+  e.preventDefault();
+  const f = e.target;
+  if (f.id === "form-gen") {
+    document.activeElement?.blur(); S.genOpen = false;
+    const n = Number(f.querySelector("#g-comedor").value);
+    const dias = n ? COMEDOR[n - 1] : [];
+    generarSemana({ lunes: f.querySelector("#g-lunes").value, comedorSemana: n, comedorDias: dias,
+      comedor: dias.map((x, i) => DIAS[i] + ": " + x).join("\n"), peticiones: f.querySelector("#g-pet").value.trim() });
+  }
+  if (f.id === "form-desp") {
+    const nombre = f.querySelector("#d-nombre").value.trim(); if (!nombre) return;
+    await store.set("despensa/" + uid(), { nombre, cantidad: f.querySelector("#d-cant").value.trim(), lugar: f.querySelector("#d-lugar").value });
+    f.querySelector("#d-nombre").value = ""; f.querySelector("#d-cant").value = "";
+    render(true);
+  }
+  if (f.id === "form-add-item") {
+    const s = semanaActual(); const nombre = f.querySelector("#ai-nombre").value.trim(); if (!nombre || !s) return;
+    const nuevo = { nombre, cantidad: f.querySelector("#ai-cant").value.trim(), unidad: "", tienda: f.querySelector("#ai-tienda").value, seccion: "Añadido a mano", precio: parseFloat(f.querySelector("#ai-precio").value) || 0, para: "", estado: "pendiente", orden: 999 };
+    f.reset(); document.activeElement?.blur();
+    await store.set(`semanas/${s.id}/compra/999-${uid()}`, nuevo);
+  }
+  if (f.hasAttribute("data-addchip")) {
+    const inp = f.querySelector("input"); const v = inp.value.trim().toLowerCase(); if (!v) return;
+    const p = S.config.personas.find(x => x.id === f.dataset.p);
+    if (!p[f.dataset.k].includes(v)) p[f.dataset.k].push(v);
+    inp.value = ""; await saveConfig(); render(true);
+  }
+  if (f.id === "form-ajustes") {
+    const c = S.config;
+    c.presupuesto = Number(f.querySelector("#a-pres").value) || c.presupuesto;
+    c.comidaLibre = f.querySelector("#a-libre").value;
+    c.diaCompra = f.querySelector("#a-compra").value;
+    c.hidratos = f.querySelector("#a-hid").value.trim();
+    c.tiendas = f.querySelector("#a-tiendas").value.trim();
+    c.cocina = f.querySelector("#a-cocina").value.trim();
+    c.notas = f.querySelector("#a-notas").value.trim();
+    await saveConfig(); document.activeElement?.blur(); render(true);
+    const ok = document.getElementById("ajustes-ok"); if (ok) ok.hidden = false;
+  }
+});
+
+function selectSemana(id) {
+  S.semanaId = id;
+  if (unsubItems) { try { unsubItems(); } catch (e) {} unsubItems = null; }
+  S.items = [];
+  if (id && id !== "ejemplo") unsubItems = store.watchCol(`semanas/${id}/compra`, rows => { S.items = rows.map(r => Object.assign({ id: r.id }, r.data)); render(); }) || null;
+  render();
+}
+
+/* =========================================================
+   Arranque
+   ========================================================= */
+function start() {
+  try { const t = localStorage.getItem("cd-tab"); if (t) S.tab = t; } catch (e) {}
+  store.watchDoc("config/hogar", c => {
+    S.config = Object.assign(structuredClone(DEFAULT_CONFIG), c || {});
+    if (!Array.isArray(S.config.personas)) S.config.personas = structuredClone(DEFAULT_CONFIG.personas);
+    render();
+  });
+  store.watchCol("despensa", rows => { S.despensa = rows; render(); });
+  store.watchCol("semanas", rows => {
+    S.semanas = rows;
+    if (!S.semanaId || (S.semanaId === "ejemplo" && rows.length) || (S.semanaId !== "ejemplo" && !rows.some(r => r.id === S.semanaId))) {
+      const latest = rows.slice().sort((a, b) => b.id.localeCompare(a.id))[0];
+      selectSemana(latest ? latest.id : "ejemplo");
+    } else render();
+  });
+}
+
+render();
+(async () => {
+  const claude = window.claude;
+  if (claude && typeof claude.use === "function") {
+    const [d, sm] = await Promise.all([claude.use("db").catch(() => null), claude.use("sample").catch(() => null)]);
+    db = d; sample = sm; shared = !!d;
+  }
+  start();
+})();
+</script>
