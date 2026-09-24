@@ -657,37 +657,71 @@ async function generarSemana(form) {
     .flatMap(s => (s.data.menu?.dias || []).flatMap(d => [d.comida?.plato, d.cena?.plato])).filter(p => p && p !== "Comida libre");
   S.gen = { paso: 0, pasos: ["Menú de la semana", "Nutrición aproximada", "Lista de la compra por tiendas", "Plan del " + S.config.diaBatch.toLowerCase()], error: null };
   S.error = null; render();
-  if (form.comedorSemana) { S.config.comedorRef = { lunes, n: form.comedorSemana }; saveConfig(); }
+  if (form.comedorSemana) saveConfig({ comedor: Object.assign({}, S.config.comedor, { ref: { lunes, n: form.comedorSemana } }) }).catch(() => {});
   try {
     const menu = await sample.json(promptMenu(lunes, form.comedor, form.peticiones, previos), { modelTier: "complex" });
     if (!menu || !Array.isArray(menu.dias) || menu.dias.length !== 7) throw { message: "El menú llegó incompleto. Vuelve a intentarlo." };
-    await store.set("semanas/" + id, { lunes, menu, comedor: form.comedor || "", comedorSemana: form.comedorSemana, comedorDias: form.comedorDias || [], peticiones: form.peticiones || "", creada: new Date().toISOString(), estado: "lista", bloqueada: true, gastos: {}, batchHecho: [], compraDesfasada: false });
-    S.semanaId = id; S.gen.paso = 1; render();
-
-    await calcularNutricion(id, menu).catch(() => {});   // si falla, la semana sigue adelante
-    S.gen.paso = 2; render();
-
-    await generarCompra(id, menu);
-    S.gen.paso = 3; render();
-
-    const batch = await sample.json(promptBatch(menu), { modelTier: "complex" });
-    await store.update("semanas/" + id, { batch });
-    S.gen = null; S.tab = "semana"; render();
+    await store.set("semanas/" + id, { lunes, menu, comedor: form.comedor || "", comedorSemana: form.comedorSemana, comedorDias: form.comedorDias || [], peticiones: form.peticiones || "", creada: new Date().toISOString(), estado: "generando", generandoDesde: new Date().toISOString(), bloqueada: true, gastos: {}, batchHecho: [], compraDesfasada: false });
+    S.semanaId = id;
+    await completarSemana(id, menu, { nutri: true, compra: true, batch: true });
+    S.tab = "semana"; render();
   } catch (e) {
     // si ni siquiera llegó el menú, quitar la semana a medio crear
     const doc = await store.get("semanas/" + id).catch(() => null);
     if (doc && !doc.menu) await store.del("semanas/" + id).catch(() => {});
-    else if (doc) await store.update("semanas/" + id, { estado: "lista" }).catch(() => {});
     S.gen.error = mensajeIA(e); render();
   }
 }
 
+// Pasos después del menú. Cada paso que falta se puede volver a lanzar si la generación se cortó.
+async function completarSemana(id, menu, falta) {
+  S.gen = { paso: 1, pasos: ["Menú de la semana", "Nutrición aproximada", "Lista de la compra por tiendas", "Plan del " + S.config.diaBatch.toLowerCase()], error: null };
+  render();
+  await store.update("semanas/" + id, { estado: "generando", generandoDesde: new Date().toISOString() });
+  try {
+    if (falta.nutri) await calcularNutricion(id, menu).catch(() => {});   // si falla, la semana sigue adelante
+    S.gen.paso = 2; render();
+    if (falta.compra) await generarCompra(id, menu);
+    S.gen.paso = 3; render();
+    if (falta.batch) {
+      const batch = await sample.json(promptBatch(menu), { modelTier: "complex" });
+      await store.update("semanas/" + id, { batch, batchHecho: [] });
+    }
+    await store.update("semanas/" + id, { estado: "lista" });
+    S.gen = null; render();
+  } catch (e) {
+    await store.update("semanas/" + id, { estado: "incompleta" }).catch(() => {});
+    throw e;
+  }
+}
+async function terminarSemana() {
+  const s = semanaActual(); if (!s || s.ejemplo || !sample || !s.menu) return;
+  try { await completarSemana(s.id, s.menu, { nutri: !s.nutri, compra: !S.items.length, batch: !s.batch }); }
+  catch (e) { if (S.gen) S.gen.error = mensajeIA(e); render(); }
+}
+function semanaIncompleta(s) {
+  if (!s || s.ejemplo || !s.menu || S.gen) return false;
+  const reciente = s.estado === "generando" && Date.now() - new Date(s.generandoDesde || 0).getTime() < 10 * 60e3;
+  if (reciente) return false;
+  return !s.batch || (!S.items.length && S.itemsCargados);
+}
+
 async function rehacerSemana() {
   const s = semanaActual(); if (!s || s.ejemplo) return;
-  S.confirm = null;
-  for (const i of S.items) await store.del(`semanas/${s.id}/compra/${i.id}`);
-  await store.del("semanas/" + s.id);
-  S.genOpen = true; S.genLunes = s.id; S.tab = "semana"; render(true);
+  S.confirm = null; S.borrando = s.id; S.tab = "semana";
+  // dejar de escuchar la lista para que no se redibuje con cada producto borrado
+  if (unsubItems) { try { unsubItems(); } catch (e) {} unsubItems = null; }
+  const ids = S.items.map(i => i.id); S.items = [];
+  render(true);
+  try {
+    await store.update("semanas/" + s.id, { estado: "borrando" });
+    await Promise.all(ids.map(id => store.del(`semanas/${s.id}/compra/${id}`).catch(() => {})));
+    await store.del("semanas/" + s.id);
+  } catch (e) { S.error = "No se pudo borrar la semana del todo. Vuelve a intentarlo."; }
+  S.borrando = null; S.semanaId = null; render(true);
+  S.genOpen = true; S.genLunes = s.id; S.tab = "semana";
+  const latest = S.semanas.filter(r => r.id !== s.id).sort((a, b) => b.id.localeCompare(a.id))[0];
+  selectSemana(latest ? latest.id : "ejemplo");
   window.scrollTo(0, 0);
 }
 
@@ -801,6 +835,7 @@ function editando(el) {
   return a && el.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type !== "checkbox" && a.id !== "sel-semana";
 }
 function render(force) {
+  if (S.borrando && !force) return;   // mientras se borra una semana, una sola pantalla fija
   document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === S.tab)));
   ["semana","compra","batch","despensa","ajustes"].forEach(t => document.getElementById("tab-" + t).hidden = t !== S.tab);
   const n = document.getElementById("notice");
@@ -858,11 +893,13 @@ function panelGenerar() {
 
 function renderSemana() {
   const s = semanaActual();
+  if (S.borrando) return `<div class="banner"><span><span class="spin">◌</span> Borrando la semana del ${esc(fechaCorta(S.borrando))}…</span></div>`;
   let h = `<div class="row between"><div><span class="label">Semana</span><h2>${s ? (s.ejemplo ? "Ejemplo: semana del " : "Del ") + esc(fechaCorta(s.lunes)) + " al " + esc(fechaCorta(s.lunes, 6)) : "Sin semana"}</h2></div>${selectorSemana()}</div>`;
   h += panelGenerar();
   if (!s) return h;
   if (s.ejemplo) h += `<div class="banner small"><span>Esto es una semana de ejemplo para que veas cómo funciona. Genera la vuestra arriba.</span></div>`;
   if (!s.ejemplo && !s.menu) return h + `<div class="banner"><span><span class="spin">◌</span> Esta semana se está generando${S.gen ? "" : " en otro móvil"}. Aparecerá aquí en uno o dos minutos.</span></div>`;
+  if (semanaIncompleta(s)) h += `<div class="banner warn"><span>Esta semana se quedó a medias: falta ${[!s.nutri && "la nutrición", !S.items.length && "la lista de la compra", !s.batch && "el plan del " + esc(S.config.diaBatch.toLowerCase())].filter(Boolean).join(", ")}.</span><button class="btn sm primary" data-act="terminar-semana" ${sample ? "" : "disabled"}>Terminar la semana</button></div>`;
   if (s.compraDesfasada) h += bannerDesfase("Has cambiado platos: la lista de la compra y el plan del domingo ya no coinciden.", "Rehacer compra y plan");
 
   const items = itemsActuales().filter(i => i.estado !== "casa");
@@ -1256,7 +1293,16 @@ Responde SOLO con JSON: {"nombre":"nombre del colegio o comedor si aparece, si n
 /* =========================================================
    Acciones
    ========================================================= */
-function saveConfig() { return store.set("config/hogar", S.config); }
+// Guarda solo los apartados que han cambiado, para no pisar lo que haya guardado otro móvil
+async function saveConfig(cambios) {
+  if (!cambios || !Object.keys(cambios).length) return;
+  const actual = await store.get("config/hogar").catch(() => null);
+  if (actual) await store.update("config/hogar", cambios);
+  else await store.set("config/hogar", Object.assign(structuredClone(S.config), cambios));
+}
+function diferencias(antes, despues) {
+  return Object.fromEntries(Object.keys(despues).filter(k => JSON.stringify(antes[k]) !== JSON.stringify(despues[k])).map(k => [k, despues[k]]));
+}
 
 document.addEventListener("click", async e => {
   const tabBtn = e.target.closest("nav.tabs button");
@@ -1275,6 +1321,7 @@ document.addEventListener("click", async e => {
   if (act === "terminar") { S.verCarrito = false; await setEstado(itemsActuales().filter(i => i.estado === "carrito").map(i => i.id), "comprado"); }
   if (act === "quitar-desp") await store.del("despensa/" + b.dataset.id);
   if (act === "calc-nutri") botonNutricion();
+  if (act === "terminar-semana") terminarSemana();
   if (act === "ir-ajustes") { S.tab = "ajustes"; render(true); window.scrollTo(0, 0); }
   if (["add-persona", "quitar-persona", "add-tienda", "quitar-tienda", "add-semana", "quitar-semana", "vaciar-comedor"].includes(act)) {
     const d = leerAjustes(), k = Number(b.dataset.k);
@@ -1352,8 +1399,11 @@ document.addEventListener("submit", async e => {
     const d = leerAjustes();
     d.personas = d.personas.map((p, k) => Object.assign(p, { nombre: p.nombre || "Persona " + (k + 1) }));
     d.tiendas = d.tiendas.filter(t => t.nombre);
-    S.config = normalizar(d); S.draft = null; S.importMsg = null; S.guardado = true;
-    await saveConfig(); document.activeElement?.blur(); render(true);
+    const nuevo = normalizar(d), cambios = diferencias(S.config, nuevo);
+    S.config = nuevo; S.draft = null; S.importMsg = null;
+    try { await saveConfig(cambios); S.guardado = true; }
+    catch (err) { S.error = "No se han podido guardar los ajustes: " + (err?.message || "error de conexión") + ". Vuelve a intentarlo."; S.draft = d; }
+    document.activeElement?.blur(); render(true);
   }
 });
 
@@ -1365,8 +1415,8 @@ document.addEventListener("input", e => {
 function selectSemana(id) {
   S.semanaId = id;
   if (unsubItems) { try { unsubItems(); } catch (e) {} unsubItems = null; }
-  S.items = [];
-  if (id && id !== "ejemplo") unsubItems = store.watchCol(`semanas/${id}/compra`, rows => { S.items = rows.map(r => Object.assign({ id: r.id }, r.data)); render(); }) || null;
+  S.items = []; S.itemsCargados = false;
+  if (id && id !== "ejemplo") unsubItems = store.watchCol(`semanas/${id}/compra`, rows => { S.items = rows.map(r => Object.assign({ id: r.id }, r.data)); S.itemsCargados = true; render(); }) || null;
   render();
 }
 
@@ -1382,7 +1432,9 @@ function start() {
   store.watchCol("despensa", rows => { S.despensa = rows; render(); });
   store.watchDoc("precios/mercadona", d => { S.precios = d; render(); });
   store.watchCol("semanas", rows => {
-    S.semanas = rows;
+    // fuera las semanas que se están borrando o que se quedaron vacías
+    S.semanas = rows.filter(r => r.id !== S.borrando && r.data && r.data.estado !== "borrando" && (r.data.menu || r.data.estado === "generando"));
+    rows = S.semanas;
     if (!S.semanaId || (S.semanaId === "ejemplo" && rows.length) || (S.semanaId !== "ejemplo" && !rows.some(r => r.id === S.semanaId))) {
       const latest = rows.slice().sort((a, b) => b.id.localeCompare(a.id))[0];
       selectSemana(latest ? latest.id : "ejemplo");
