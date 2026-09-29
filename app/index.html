@@ -721,7 +721,7 @@ async function rehacerSemana() {
   S.borrando = null; S.semanaId = null; render(true);
   S.genOpen = true; S.genLunes = s.id; S.tab = "semana";
   const latest = S.semanas.filter(r => r.id !== s.id).sort((a, b) => b.id.localeCompare(a.id))[0];
-  selectSemana(latest ? latest.id : "ejemplo");
+  selectSemana(latest ? latest.id : sinSemana());
   window.scrollTo(0, 0);
 }
 
@@ -896,7 +896,7 @@ function renderSemana() {
   if (S.borrando) return `<div class="banner"><span><span class="spin">◌</span> Borrando la semana del ${esc(fechaCorta(S.borrando))}…</span></div>`;
   let h = `<div class="row between"><div><span class="label">Semana</span><h2>${s ? (s.ejemplo ? "Ejemplo: semana del " : "Del ") + esc(fechaCorta(s.lunes)) + " al " + esc(fechaCorta(s.lunes, 6)) : "Sin semana"}</h2></div>${selectorSemana()}</div>`;
   h += panelGenerar();
-  if (!s) return h;
+  if (!s) return h + `<p class="muted">Todavía no hay ninguna semana planificada. Elige el lunes y pulsa «Generar» arriba.</p>`;
   if (s.ejemplo) h += `<div class="banner small"><span>Esto es una semana de ejemplo para que veas cómo funciona. Genera la vuestra arriba.</span></div>`;
   if (!s.ejemplo && !s.menu) return h + `<div class="banner"><span><span class="spin">◌</span> Esta semana se está generando${S.gen ? "" : " en otro móvil"}. Aparecerá aquí en uno o dos minutos.</span></div>`;
   if (semanaIncompleta(s)) h += `<div class="banner warn"><span>Esta semana se quedó a medias: falta ${[!s.nutri && "la nutrición", !S.items.length && "la lista de la compra", !s.batch && "el plan del " + esc(S.config.diaBatch.toLowerCase())].filter(Boolean).join(", ")}.</span><button class="btn sm primary" data-act="terminar-semana" ${sample ? "" : "disabled"}>Terminar la semana</button></div>`;
@@ -1412,6 +1412,8 @@ document.addEventListener("input", e => {
   if (e.target.closest?.("#form-ajustes") && e.target.id !== "co-file") { S.draft = leerAjustes(); S.guardado = false; }
 });
 
+// El ejemplo solo se enseña a una casa sin configurar; una casa configurada sin semanas ve el formulario
+function sinSemana() { return S.config.personas.length ? null : "ejemplo"; }
 function selectSemana(id) {
   S.semanaId = id;
   if (unsubItems) { try { unsubItems(); } catch (e) {} unsubItems = null; }
@@ -1427,6 +1429,7 @@ function start() {
   try { const t = localStorage.getItem("cd-tab"); if (t) S.tab = t; if (localStorage.getItem("cd-nutri") === "0") S.verNutri = false; } catch (e) {}
   store.watchDoc("config/hogar", c => {
     S.config = normalizar(c);
+    if (S.semanaId === "ejemplo" && S.config.personas.length) { selectSemana(null); return; }
     render();
   });
   store.watchCol("despensa", rows => { S.despensa = rows; render(); });
@@ -1437,7 +1440,7 @@ function start() {
     rows = S.semanas;
     if (!S.semanaId || (S.semanaId === "ejemplo" && rows.length) || (S.semanaId !== "ejemplo" && !rows.some(r => r.id === S.semanaId))) {
       const latest = rows.slice().sort((a, b) => b.id.localeCompare(a.id))[0];
-      selectSemana(latest ? latest.id : "ejemplo");
+      selectSemana(latest ? latest.id : sinSemana());
     } else render();
   });
 }
